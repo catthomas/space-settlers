@@ -1,10 +1,13 @@
-package thom8296;
+package stan5674;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -13,6 +16,7 @@ import com.thoughtworks.xstream.XStreamException;
 
 import spacesettlers.actions.AbstractAction;
 import spacesettlers.actions.DoNothingAction;
+import spacesettlers.actions.MoveToObjectAction;
 import spacesettlers.actions.PurchaseCosts;
 import spacesettlers.actions.PurchaseTypes;
 import spacesettlers.clients.ExampleKnowledge;
@@ -20,10 +24,14 @@ import spacesettlers.clients.TeamClient;
 import spacesettlers.graphics.SpacewarGraphics;
 import spacesettlers.objects.AbstractActionableObject;
 import spacesettlers.objects.AbstractObject;
+import spacesettlers.objects.Asteroid;
+import spacesettlers.objects.Base;
+import spacesettlers.objects.Beacon;
 import spacesettlers.objects.Ship;
 import spacesettlers.objects.powerups.SpaceSettlersPowerupEnum;
 import spacesettlers.objects.resources.ResourcePile;
 import spacesettlers.simulator.Toroidal2DPhysics;
+import spacesettlers.utilities.Position;
 
 /**
  * Collects nearby asteroids and brings them to the base, picks up beacons as needed for energy.
@@ -46,12 +54,12 @@ public class CatAdamAgent extends TeamClient {
 
 		// loop through each ship
 		for (AbstractObject actionable :  actionableObjects) {
-			//System.out.println(actionable);
+			System.out.println(actionable);
 			if (actionable instanceof Ship) {
 				Ship ship = (Ship) actionable;
 
 				AbstractAction action;
-				action = pilot.executePlan(space, ship);
+				action = pilot.decideAction(space, ship);
 				actions.put(ship.getId(), action);
 				
 			} else {
@@ -65,13 +73,6 @@ public class CatAdamAgent extends TeamClient {
 
 	@Override
 	public void getMovementEnd(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects) {
-		for (AbstractObject actionable :  actionableObjects) {
-			//System.out.println(actionable);
-			if (actionable instanceof Ship) {
-				Ship ship = (Ship) actionable;
-				pilot.assessPlan(space, ship);
-			} 
-		} 
 	}
 
 	/**
