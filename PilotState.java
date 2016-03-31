@@ -1,17 +1,18 @@
 package stan5674;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.LinkedList;
-import java.util.List;
+import java.awt.Color;
+import java.awt.geom.Ellipse2D;
 import java.util.*;
 
 import spacesettlers.actions.*;
+import spacesettlers.graphics.CircleGraphics;
+import spacesettlers.graphics.LineGraphics;
+import spacesettlers.graphics.SpacewarGraphics;
 import spacesettlers.objects.*;
 import spacesettlers.objects.resources.ResourcePile;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.*;
+import stan5674.astar.Graph;
 
 /**
  * Use a pilot's perspective to make decisions
@@ -32,6 +33,7 @@ public class PilotState {
 	HashMap<UUID, Set<Node>> graph = new HashMap<UUID, Set<Node>>();
 	HashMap<UUID, Node> nodes = new HashMap<UUID, Node>();
 	Stack<Node> path = new Stack<Node>();
+	Set<SpacewarGraphics> graphics = new HashSet<SpacewarGraphics>(); //Holds markers for A* path
 	int exe = this.EXE_TIME; 				//time spent executing current plan
 
 	public class Node{
@@ -77,6 +79,16 @@ public class PilotState {
 		public double getF(){
 			return this.h + this.g;
 		}
+	}
+	
+	//return the current path
+	public Stack<Node> getPath(){
+		return path;
+	}
+	
+	//return the current graphics
+	public Set<SpacewarGraphics> getPathGraphics(){
+		return graphics;
 	}
 
 	//call in agent init to set FOV radius of pilot
@@ -204,7 +216,7 @@ public class PilotState {
 			//System.out.println("~~~~~~~Visiting nodeID: "+ current.getObject().getId() +"~~~~~~");
 			
 			if(current.equals(goal)){ //goal found - return path!
-				this.setPath(previousNode, start, goal);
+				this.setPath(space, previousNode, start, goal);
 				//System.out.println("~~~~~Planning successful, size: " + this.path.size() +"~~~~~");
 				return;
 			}
@@ -239,14 +251,27 @@ public class PilotState {
 		//System.out.println("~~~~~~~PLANNING FAILED~~~~~~~~");
 	}
 	
-	public void setPath(HashMap<Node, Node> previousNode, Node start, Node goal){
+	/**
+	 * Iterates through nodes backwards and draws the A* path. 
+	 * @param previousNode
+	 * @param start
+	 * @param goal
+	 */
+	public void setPath(Toroidal2DPhysics state, HashMap<Node, Node> previousNode, Node start, Node goal){
 		this.path.clear();
 		
-		Node current = goal;
+		Node current = goal; //Start from end, assume goal was found
+		graphics.clear(); //clear graphics
+		Position prevPos;
 
 		while(current != start){
-			this.path.push(current);
-			current = previousNode.get(current);
+			this.path.push(current); //add to path
+			prevPos = current.getObject().getPosition(); //get position of node
+			//graphics.add(new CircleGraphics(2, Color.RED, prevPos));	//mark location of node on map
+			current = previousNode.get(current); //switch to next node
+			//add a line between this node and last
+			graphics.add(new LineGraphics(current.getObject().getPosition(), prevPos, 
+					state.findShortestDistanceVector(current.getObject().getPosition(), prevPos))); 
 		}
 
 		this.exe = 0;

@@ -5,6 +5,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -32,6 +33,7 @@ import spacesettlers.objects.powerups.SpaceSettlersPowerupEnum;
 import spacesettlers.objects.resources.ResourcePile;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.Position;
+import stan5674.astar.Graph;
 
 /**
  * Collects nearby asteroids and brings them to the base, picks up beacons as needed for energy.
@@ -130,12 +132,6 @@ public class CatAdamAgent extends TeamClient {
 	}
 
 	@Override
-	public Set<SpacewarGraphics> getGraphics() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
 	/**
 	 * If there is enough resourcesAvailable, buy a base.  Place it by finding a ship that is sufficiently
 	 * far away from the existing bases
@@ -177,5 +173,19 @@ public class CatAdamAgent extends TeamClient {
 		
 		return powerUps;
 	}
+	
+	
+	@Override
+	public Set<SpacewarGraphics> getGraphics() {
+		HashSet<SpacewarGraphics> graphics = new HashSet<SpacewarGraphics>();
+		for (PilotState state : pilots.values()) {
+			// uncomment to see the full graph
+			//graphics.addAll(graph.getAllGraphics());
+			graphics.addAll(state.getPathGraphics());
+		}
 
+		HashSet<SpacewarGraphics> newGraphicsClone = (HashSet<SpacewarGraphics>) graphics.clone();
+		graphics.clear();
+		return newGraphicsClone;
+	}
 }
