@@ -42,7 +42,8 @@ import spacesettlers.utilities.Position;
  * @author amy
  */
 public class CatAdamAgent extends TeamClient {
-	PilotState pilot = new PilotState();
+	HashMap<UUID, PilotState> pilots = new HashMap<UUID, PilotState>();
+	//PilotState pilot = new PilotState();
 	/**
 	 * Example knowledge used to show how to load in/save out to files for learning
 	 */
@@ -58,8 +59,13 @@ public class CatAdamAgent extends TeamClient {
 			if (actionable instanceof Ship) {
 				Ship ship = (Ship) actionable;
 
+				if (!pilots.containsKey(ship.getId())){
+					pilots.put(ship.getId(), new PilotState());
+					pilots.get(ship.getId()).setFOV(space);
+				}
+
 				AbstractAction action;
-				action = pilot.decideAction(space, ship);
+				action = pilots.get(ship.getId()).executePlan(space, ship);
 				actions.put(ship.getId(), action);
 				
 			} else {
@@ -73,6 +79,23 @@ public class CatAdamAgent extends TeamClient {
 
 	@Override
 	public void getMovementEnd(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects) {
+		//do goal arrival checking here?
+		for (AbstractObject actionable :  actionableObjects) {
+			System.out.println(actionable);
+			if (actionable instanceof Ship) {
+				Ship ship = (Ship) actionable;
+
+
+				if (!pilots.containsKey(ship.getId())){
+					pilots.put(ship.getId(), new PilotState());
+					pilots.get(ship.getId()).setFOV(space);
+				} else {
+					pilots.get(ship.getId()).assessPlan(space, ship);
+				}
+				//actions.put(ship.getId(), action);
+				
+			}
+		} 
 	}
 
 	/**
@@ -80,16 +103,7 @@ public class CatAdamAgent extends TeamClient {
 	 */
 	@Override
 	public void initialize(Toroidal2DPhysics space) {
-		XStream xstream = new XStream();
-		xstream.alias("ExampleKnowledge", ExampleKnowledge.class);
-
-		try { 
-			myKnowledge = (ExampleKnowledge) xstream.fromXML(new File(getKnowledgeFile()));
-		} catch (XStreamException e) {
-			// if you get an error, handle it other than a null pointer because
-			// the error will happen the first time you run
-			myKnowledge = new ExampleKnowledge();
-		}
+		//pilot.setFOV(space);
 	}
 
 	/**
@@ -138,7 +152,7 @@ public class CatAdamAgent extends TeamClient {
 			if (actionableObject instanceof Ship) {
 				Ship ship = (Ship) actionableObject;
 
-				purchase = pilot.shop(space, ship, resourcesAvailable, purchaseCosts);	//ship gets a single purchase
+				purchase = pilots.get(ship.getId()).shop(space, ship, resourcesAvailable, purchaseCosts);	//ship gets a single purchase
 				
 				if (purchase != null) {
 					purchases.put(ship.getId(), purchase);
