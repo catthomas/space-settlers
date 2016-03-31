@@ -57,13 +57,12 @@ public class CatAdamAgent extends TeamClient {
 
 		// loop through each ship
 		for (AbstractObject actionable :  actionableObjects) {
-			System.out.println(actionable);
+			//System.out.println(actionable);
 			if (actionable instanceof Ship) {
 				Ship ship = (Ship) actionable;
 
 				if (!pilots.containsKey(ship.getId())){
-					pilots.put(ship.getId(), new PilotState());
-					pilots.get(ship.getId()).setFOV(space);
+					pilots.put(ship.getId(), new PilotState(space));
 				}
 
 				AbstractAction action;
@@ -83,14 +82,13 @@ public class CatAdamAgent extends TeamClient {
 	public void getMovementEnd(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects) {
 		//do goal arrival checking here?
 		for (AbstractObject actionable :  actionableObjects) {
-			System.out.println(actionable);
+			//System.out.println(actionable);
 			if (actionable instanceof Ship) {
 				Ship ship = (Ship) actionable;
 
 
 				if (!pilots.containsKey(ship.getId())){
-					pilots.put(ship.getId(), new PilotState());
-					pilots.get(ship.getId()).setFOV(space);
+					pilots.put(ship.getId(), new PilotState(space));
 				} else {
 					pilots.get(ship.getId()).assessPlan(space, ship);
 				}
@@ -177,15 +175,16 @@ public class CatAdamAgent extends TeamClient {
 	
 	@Override
 	public Set<SpacewarGraphics> getGraphics() {
-		HashSet<SpacewarGraphics> graphics = new HashSet<SpacewarGraphics>();
-		for (PilotState state : pilots.values()) {
-			// uncomment to see the full graph
-			//graphics.addAll(graph.getAllGraphics());
-			graphics.addAll(state.getPathGraphics());
-		}
+		// HashSet<SpacewarGraphics> graphics = new HashSet<SpacewarGraphics>();
+		// for (PilotState state : pilots.values()) {
+		// 	// uncomment to see the full graph
+		// 	//graphics.addAll(graph.getAllGraphics());
+		// 	graphics.addAll(state.getPathGraphics());
+		// }
 
-		HashSet<SpacewarGraphics> newGraphicsClone = (HashSet<SpacewarGraphics>) graphics.clone();
-		graphics.clear();
-		return newGraphicsClone;
+		// HashSet<SpacewarGraphics> newGraphicsClone = (HashSet<SpacewarGraphics>) graphics.clone();
+		// graphics.clear();
+		// return newGraphicsClone;
+		return null;
 	}
 }
