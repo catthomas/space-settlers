@@ -175,16 +175,15 @@ public class CatAdamAgent extends TeamClient {
 	
 	@Override
 	public Set<SpacewarGraphics> getGraphics() {
-		// HashSet<SpacewarGraphics> graphics = new HashSet<SpacewarGraphics>();
-		// for (PilotState state : pilots.values()) {
-		// 	// uncomment to see the full graph
-		// 	//graphics.addAll(graph.getAllGraphics());
-		// 	graphics.addAll(state.getPathGraphics());
-		// }
+		HashSet<SpacewarGraphics> graphics = new HashSet<SpacewarGraphics>();
+		for (PilotState state : pilots.values()) {
+			// uncomment to see the full graph
+			//graphics.addAll(graph.getAllGraphics());
+		 	graphics.addAll(state.getPathGraphics());
+		 }
 
-		// HashSet<SpacewarGraphics> newGraphicsClone = (HashSet<SpacewarGraphics>) graphics.clone();
-		// graphics.clear();
-		// return newGraphicsClone;
-		return null;
+		HashSet<SpacewarGraphics> newGraphicsClone = (HashSet<SpacewarGraphics>) graphics.clone();
+		graphics.clear();
+		return newGraphicsClone;
 	}
 }
