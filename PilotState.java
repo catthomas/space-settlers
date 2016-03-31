@@ -1,18 +1,14 @@
 package stan5674;
 
-import java.awt.Color;
-import java.awt.geom.Ellipse2D;
 import java.util.*;
 
 import spacesettlers.actions.*;
-import spacesettlers.graphics.CircleGraphics;
 import spacesettlers.graphics.LineGraphics;
 import spacesettlers.graphics.SpacewarGraphics;
 import spacesettlers.objects.*;
 import spacesettlers.objects.resources.ResourcePile;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.*;
-import stan5674.astar.Graph;
 
 /**
  * Use a pilot's perspective to make decisions
@@ -79,11 +75,6 @@ public class PilotState {
 		public double getF(){
 			return this.h + this.g;
 		}
-	}
-	
-	//return the current path
-	public Stack<Node> getPath(){
-		return path;
 	}
 	
 	//return the current graphics
