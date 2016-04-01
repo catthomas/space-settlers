@@ -27,12 +27,29 @@ public class PilotState {
 
 	private Ship vessel;
 	private Node goal; //Goal location of vessel
-	private HashMap<UUID, Set<Node>> graph = new HashMap<UUID, Set<Node>>(); //Holds graph used for A*
-	private HashMap<UUID, Node> nodes = new HashMap<UUID, Node>();	//Holds nodes used in A* graph
+	private WeakHashMap<UUID, Set<Node>> graph = new WeakHashMap<UUID, Set<Node>>(); //Holds graph used for A*
+	private WeakHashMap<UUID, Node> nodes = new WeakHashMap<UUID, Node>();	//Holds nodes used in A* graph
 	private Stack<Node> path = new Stack<Node>(); //The path the vessel is following
 	private Set<SpacewarGraphics> graphics = new HashSet<SpacewarGraphics>(); //Holds markers for A* path
 	private int exe = this.EXE_TIME; 				//time spent executing current plan
 
+	//constructor method
+	public PilotState(Toroidal2DPhysics space){
+		setFOV(space);
+		goal = null;
+	}
+	
+	//return the current graphics
+	public Set<SpacewarGraphics> getPathGraphics(){
+		return graphics;
+	}
+
+	//call in agent init to set FOV radius of pilot
+	public void setFOV(Toroidal2DPhysics space){
+		this.FOV = Math.min(space.getHeight(), space.getWidth());
+		this.FOV/=2;
+	}
+	
 	/**
 	 * Class used to create graph for A*. 
 	 */
@@ -80,42 +97,30 @@ public class PilotState {
 			return this.h + this.g;
 		}
 	}
-	
-	//return the current path
-	public Stack<Node> getPath(){
-		return path;
-	}
-	
-	//return the current graphics
-	public Set<SpacewarGraphics> getPathGraphics(){
-		return graphics;
-	}
-
-	public PilotState(Toroidal2DPhysics space){
-		setFOV(space);
-	}
-
-	//call in agent init to set FOV radius of pilot
-	public void setFOV(Toroidal2DPhysics space){
-		this.FOV = Math.min(space.getHeight(), space.getWidth());
-		this.FOV/=2;
-	}
 
 
-	/*
-	* Maybe a hashmap connecting a UUID of an object to a set/array of connected objects
-	* Path cost can be computed when traversing graph, or an adjacency matrix may be used
-	*/
+	/**
+	 * Generates a graph of connected nodes to be used for pilot path planning.
+	 * @param space Environment of vessel
+	 * @param vessel Ship whose path will be planned
+	 */
 	public void genGraph(Toroidal2DPhysics space, Ship vessel){
 		//System.out.println("~~~~~~Vessel: " + vessel.getPosition() + "~~~~~~~");
 		Set<AbstractObject> objects = this.objectsInFov(space, vessel);
-		objects.add(this.findNearestBase(space, vessel, false));		//no place like home
-		objects.add(this.findNearestRefuel(space, vessel));					//or a gas station
+		AbstractObject base = this.findNearestBase(space, vessel, false);		//no place like home
+		AbstractObject beacon = this.findNearestBeacon(space, vessel); //or a gas station
 		Set<AbstractObject> other;
 		Set<AbstractObject> obs;
 		Set<Node> children;
 		this.graph.clear();
 		this.nodes.clear();
+		
+		if(base != null){ //add base if not null
+			objects.add(base);
+		}
+		if(beacon != null){ //add beacon if not null
+			objects.add(beacon);
+		}
 
 		//System.out.println("~~~~~~Objects in FOV: " + objects.size() + "~~~~~~~");
 
@@ -223,7 +228,7 @@ public class PilotState {
 		start.setG(0);
 		start.setH(findH(space, start, goal)); 
 		openList.add(start); //begin with start node
-		
+		System.out.println("~~~~~~~A STAR STARTED~~~~~~~~~~~~~");
 		//Plan path
 		while(!openList.isEmpty()){
 			//Set current node
@@ -233,7 +238,7 @@ public class PilotState {
 			
 			if(current.equals(goal)){ //goal found - return path!
 				this.setPath(space, previousNode, start, goal);
-				//System.out.println("~~~~~Planning successful, size: " + this.path.size() +"~~~~~");
+				System.out.println("~~~~~Planning successful, size: " + this.path.size() +"~~~~~");
 				return;
 			}
 			
@@ -275,7 +280,7 @@ public class PilotState {
 	 */
 	public void setPath(Toroidal2DPhysics state, HashMap<Node, Node> previousNode, Node start, Node goal){
 		this.path.clear();
-		
+		System.out.println("~~~~~~~SET PATH STARTED~~~~~~~~~~~~~");
 		Node current = goal; //Start from end, assume goal was found
 		graphics.clear(); //clear graphics
 		Position prevPos;
@@ -289,7 +294,7 @@ public class PilotState {
 			graphics.add(new LineGraphics(current.getObject().getPosition(), prevPos, 
 					state.findShortestDistanceVector(current.getObject().getPosition(), prevPos))); 
 		}
-
+		System.out.println("~~~~~~~SET PATH ENDED~~~~~~~~~~~~~");
 		this.exe = 0;
 	}
 	
@@ -394,15 +399,20 @@ public class PilotState {
 
 	//find nearest refueling station, either base or beacon 
 	public AbstractObject findNearestRefuel(Toroidal2DPhysics space, Ship vessel){
+		//System.out.println("~~~~~FIND NEAREST REFUEL~~~~~");
 		Position location = vessel.getPosition();
 
 		Base nearestBase = findNearestBase(space, vessel, true);
 		Beacon nearestBeacon = findNearestBeacon(space, vessel);
-
-		if (space.findShortestDistance(location, nearestBase.getPosition()) <= space.findShortestDistance(location, nearestBeacon.getPosition())){
-			return nearestBase;
-		} else {
+		
+		if(nearestBeacon != null && nearestBase == null){
 			return nearestBeacon;
+		} else if (nearestBeacon != null && nearestBase != null && space.findShortestDistance(location, nearestBase.getPosition()) >= space.findShortestDistance(location, nearestBeacon.getPosition())){
+			//System.out.println("Shortest distance to base found: " + nearestBase.toString());
+			return nearestBeacon;
+		} else {
+			//System.out.println("Shortest distance to Beacon found: " + nearestBeacon.toString());
+			return nearestBase;
 		}
 	}
 
@@ -449,21 +459,32 @@ public class PilotState {
 		this.genGraph(space, vessel);
 
 		Node start = this.nodes.get(vessel.getId());
-
+		AbstractObject temp = null;
+		
 		if (vessel.getEnergy() < LOW_FUEL){
-			//System.out.println("~~~~~Planning TO REFUEL~~~~~");
-			goal = this.nodes.get(findNearestRefuel(space, vessel).getId());
+			System.out.println("~~~~~Planning TO REFUEL~~~~~");
+			temp = findNearestRefuel(space, vessel);
+			if(temp != null){
+				goal = this.nodes.get(temp.getId());
+			}
 		}
 		//return resources to base
-		else if (vessel.getResources().getTotal() > CARGO_CAPACITY){
-			//System.out.println("~~~~~Planning TO BASE~~~~~");
-			goal = this.nodes.get(findNearestBase(space, vessel, false).getId());
+		if (temp == null && vessel.getResources().getTotal() > CARGO_CAPACITY){
+			System.out.println("~~~~~Planning TO BASE~~~~~");
+			temp = findNearestBase(space, vessel, false);
+			if(temp != null){
+				goal = this.nodes.get(temp.getId());
+			}
 		} else {	//just get resources
-			//System.out.println("~~~~~Planning TO PROSPECT~~~~~");
-			goal = this.nodes.get(findNearestProspect(space, vessel).getId());
+			System.out.println("~~~~~Planning TO PROSPECT~~~~~");
+			temp = findNearestProspect(space, vessel);
+			if(temp != null){
+				goal = this.nodes.get(temp.getId());
+			}
 		}
-
-		this.planPath(space, start, goal);	//find best path to goal
+		if(goal != null){
+			this.planPath(space, start, goal);	//find best path to goal
+		}
 	}
 	////!------seems to aim for the final goal of a path instead of follow the path often------!
 	public AbstractAction executePlan(Toroidal2DPhysics space, Ship vessel){
@@ -475,10 +496,10 @@ public class PilotState {
 			this.prePlan(space, vessel);
 		}
 		
-		Position goal;
+		Position target;
 
 		if (!this.path.empty()){
-			goal = this.path.peek().getObject().getPosition();		//get goal location
+			target = this.path.peek().getObject().getPosition();		//get goal location
 		}
 		else {
 			System.out.println("~~~~~~~~FAIL SAFE~~~~~~~~~");
@@ -487,15 +508,16 @@ public class PilotState {
 
 		this.exe+=1;
 
-		System.out.println("~~~~~~Executing Plan: " + this.exe + "~~~~~~");
+		//System.out.println("~~~~~~Executing Plan: " + this.exe + "~~~~~~");
 
-		return this.optimalApproach(space, vessel.getPosition(), goal);
+		return this.optimalApproach(space, vessel.getPosition(), target);
 	};
 
 	//pilot decides what to buy from shop
 	public PurchaseTypes shop(Toroidal2DPhysics space, Ship vessel, ResourcePile funds, PurchaseCosts prices){
 		Position currentPosition = vessel.getPosition();
 		if (prices.canAfford(PurchaseTypes.SHIP, funds)){
+			System.out.println("-----------------BUY A SHIP");
 			return PurchaseTypes.SHIP;
 		}
 		if (prices.canAfford(PurchaseTypes.BASE, funds)) {	//buy bases when you are in the frontier
