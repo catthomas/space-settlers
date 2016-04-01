@@ -10,39 +10,71 @@ import java.lang.Math;
  */
 public class Genome implements Serializable {
 
-	float FUEL_COEF;
-	float CARGO_CAPACITY;
-	float MAX_SPEED;
-	float FRONTIER;
+	float[] genes; 			//complete DNA sequence of agent as a parameterization of the PilotState class
 	float fitness = 0;
 
 	/**
 	 * Unique ID of class in order to be written to a file
 	 */
 	private static final long serialVersionUID = -2069500657684221613L;
+	
+	//...testing...
+	//public static void main(String[] args){
+	// 	Genome g = new Genome();
+	// 	System.out.println(g.fuelCoefGene());
+	// 	g.setFuelCoef(8.8f);
+	// 	System.out.println(g.fuelCoefGene());
+
+	// 	g.getGenes()[0] = 16.16f;
+
+	// 	System.out.println(g.fuelCoefGene());
+
+	// 	float [] b = g.getGenes();
+
+	// 	b[0] = 32.32f;
+
+	// 	System.out.println(g.fuelCoefGene());
+	// }
 
 	public Genome(){
 		//Generate DNA
-		this.FUEL_COEF = (float)Math.random();
-		this.CARGO_CAPACITY = (float)Math.random();
-		this.MAX_SPEED = (float)Math.random();
-		this.FRONTIER = (float)Math.random();
+		genes = new float[4];
+
+		for (int i = 0; i<4; i++){
+			this.genes[i] = (float)Math.random();
+		}
 	}
 
 	public float fuelCoefGene(){
-		return this.FUEL_COEF;
+		return this.genes[0];
+	}
+
+	public void setFuelCoef(float gene){
+		this.genes[0] = gene;
 	}
 
 	public float cargoCapacityGene(){
-		return this.CARGO_CAPACITY;
+		return this.genes[1];
+	}
+
+	public void setCargoCapacity(float gene){
+		this.genes[1] = gene;
 	}
 
 	public float maxSpeedGene(){
-		return this.MAX_SPEED;
+		return this.genes[2];
+	}
+
+	public void setMaxSpeed(float gene){
+		this.genes[2] = gene;
 	}
 
 	public float frontierGene(){
-		return this.FRONTIER;
+		return this.genes[3];
+	}
+
+	public void setFrontier(float gene){
+		this.genes[3] = gene;
 	}
 
 	public void setFitness(float fit){
@@ -51,6 +83,10 @@ public class Genome implements Serializable {
 
 	public float getFitness(){
 		return this.fitness;
+	}
+
+	public float[] getGenes(){
+		return this.genes;
 	}
 
 } //end Genome
