@@ -26,8 +26,8 @@ public class PilotState {
 	static float FOV = 1000;			//Max distance to consider objects
 	static int FRONTIER = 250;			//min distance between bases
 	static int MIN_BASE_FUEL = 1000;	//Minimum base fuel to be considered a candidate for refueling
-	static int EXE_TIME = 100;			//max time between planning
-	static int CLOSE_ESC = 75;			//object is considered particularly close
+	static int EXE_TIME = 30;			//max time between planning
+	static int CLOSE_ESC = 125;			//object is considered particularly close
 
 	Ship vessel;
 	Node goal;
@@ -172,29 +172,39 @@ public class PilotState {
 					return null;
 				}
 				Vector2D vec = space.findShortestDistanceVector(start.getPosition(), ob.getPosition());
+				Vector2D posEsc;
+				Vector2D negEsc;
 				if (vec.getMagnitude() < this.CLOSE_ESC){
-					vec = vec.getUnitVector().rotate(2*Math.PI/3); //rotate vector by 90 degrees 
+					vec = vec.getUnitVector();
+					posEsc = vec.rotate(2*Math.PI/3); //
+					negEsc = vec.rotate(-2*Math.PI/3);
 					
-					//Scale vector to be appropriate distance (this case, radius of end object + 1.5 radius of ship)
-					vec = vec.multiply(ob.getRadius()+2*vessel.getRadius());
-					
-					//Find goal position based on vector
-					Position goal = ob.getPosition().deepCopy();
-					//System.out.println("The initial x position: " + goal.getX() + " The initial Y position: " + goal.getY());
-					goal.setX(goal.getX() + vec.getXValue());
-					goal.setY(goal.getY() + vec.getYValue());
+					//Scale vector to be appropriate distance (this case, radius of end object + 2 radius of ship)
+					posEsc = posEsc.multiply(ob.getRadius()+2*vessel.getRadius());
+					negEsc = negEsc.multiply(ob.getRadius()+2*vessel.getRadius());
 
-					//if bypass locatoin is free, add it to graph
-					if (space.isLocationFree(goal, this.vessel.getRadius()*2)){
-						AbstractObject bypass = new Beacon(goal);		//some object
+					Vector2D[] escs = {posEsc, negEsc};
+					Position goal;
 
-						//System.out.println("The final x position: " + bypass.getPosition().getX() + " The final Y position: " + bypass.getPosition().getY());
-						
-						this.nodes.put(bypass.getId(), new Node(bypass, true));
-						HashSet<Node> temp = new HashSet<Node>();
-						temp.add(this.nodes.get(end.getId()));
-						this.graph.put(bypass.getId(), temp);	//add end node as child node of bypass
-						return this.nodes.get(bypass.getId());
+					for (Vector2D esc : escs){
+						//Find goal position based on vector
+						goal = ob.getPosition().deepCopy();
+						//System.out.println("The initial x position: " + goal.getX() + " The initial Y position: " + goal.getY());
+						goal.setX(goal.getX() + esc.getXValue());
+						goal.setY(goal.getY() + esc.getYValue());
+
+						//if bypass location is free, add it to graph
+						if (space.isLocationFree(goal, this.vessel.getRadius()*2)){
+							AbstractObject bypass = new Beacon(goal);		//some object
+
+							//System.out.println("The final x position: " + bypass.getPosition().getX() + " The final Y position: " + bypass.getPosition().getY());
+							
+							this.nodes.put(bypass.getId(), new Node(bypass, true));
+							HashSet<Node> temp = new HashSet<Node>();
+							temp.add(this.nodes.get(end.getId()));
+							this.graph.put(bypass.getId(), temp);	//add end node as child node of bypass
+							return this.nodes.get(bypass.getId());
+						}
 					}
 				}
 				return null;
@@ -323,8 +333,9 @@ public class PilotState {
 	//How do we know when we reach a subgoal?
 	public void assessPlan(Toroidal2DPhysics space, Ship vessel){
 		if (!this.path.empty())
-			if (vessel.getRadius() <= space.findShortestDistance(vessel.getPosition(), this.path.peek().getObject().getPosition())){
+			if (2*vessel.getRadius() >= space.findShortestDistance(vessel.getPosition(), this.path.peek().getObject().getPosition())){
 				this.path.pop();			//subgoal achieved
+				System.out.println("~~~~~~Popping node~~~~~~~");
 			}
 		if (this.path.empty()){				//plan complete
 			this.exe = this.EXE_TIME;		//replan next timestep
@@ -532,14 +543,14 @@ public class PilotState {
 		if (Math.abs(distVec.angleBetween(this.vessel.getPosition().getTranslationalVelocity())) > 30){
 			distVec = distVec.getUnitVector().multiply(SPEED/2);	//slowdown for allignment
 			move = new MoveAction(space, current, goal, distVec);
-			move.setKpRotational(36);
-			move.setKvRotational(12);
+			// move.setKpRotational(36);
+			// move.setKvRotational(12);
 
 		} else {
 			distVec = distVec.getUnitVector().multiply(SPEED);		//controls speed in orientation
 			move = new MoveAction(space, current, goal, distVec);
-			move.setKpRotational(36);
-			move.setKvRotational(12);
+			// move.setKpRotational(36);
+			// move.setKvRotational(12);
 		}
 		//implement a function of mass fuel and closest refuel
 		return move;
