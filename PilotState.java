@@ -9,6 +9,11 @@ import spacesettlers.objects.*;
 import spacesettlers.objects.resources.ResourcePile;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.*;
+<<<<<<< HEAD
+import stan5674.astar.Graph;
+import stan5674.Genome;
+=======
+>>>>>>> 355bf9fb6588050c352a91b4374e237a31f04728
 
 /**
  * Use a pilot's perspective to make decisions
@@ -16,6 +21,25 @@ import spacesettlers.utilities.*;
  */
 public class PilotState {
 
+<<<<<<< HEAD
+	int FUEL_COEF = 2000; 		//point of return
+	int CARGO_CAPACITY = 3000; 	
+	int MAX_SPEED = 200;				//MAX_SPEED of travel coefficient
+	int FRONTIER = 500;			//min distance between bases
+
+	float FOV = 1000;			//Max distance to consider objects
+	int MIN_BASE_FUEL = 1000;	//Minimum base fuel to be considered a candidate for refueling
+	int EXE_TIME = 30;			//max time between planning
+	int CLOSE_ESC = 125;			//object is considered particularly close
+
+	Ship vessel;
+	Node goal;
+	WeakHashMap<UUID, Set<Node>> graph = new WeakHashMap<UUID, Set<Node>>();
+	WeakHashMap<UUID, Node> nodes = new WeakHashMap<UUID, Node>();
+	Stack<Node> path = new Stack<Node>();
+	Set<SpacewarGraphics> graphics = new HashSet<SpacewarGraphics>(); //Holds markers for A* path
+	int exe = this.EXE_TIME; 				//time spent executing current plan
+=======
 	private static int LOW_FUEL = 1000; 		//point of return
 	private static int CARGO_CAPACITY = 1500; 	//Max resources to carry
 	private static int SPEED = 100;				//speed of travel coefficient
@@ -43,6 +67,7 @@ public class PilotState {
 	public Set<SpacewarGraphics> getPathGraphics(){
 		return graphics;
 	}
+>>>>>>> 355bf9fb6588050c352a91b4374e237a31f04728
 
 	//call in agent init to set FOV radius of pilot
 	public void setFOV(Toroidal2DPhysics space){
@@ -98,6 +123,25 @@ public class PilotState {
 		}
 	}
 
+<<<<<<< HEAD
+	public PilotState(Toroidal2DPhysics space){
+		setFOV(space);
+		this.FUEL_COEF *= .5;
+		this.CARGO_CAPACITY *= .5;
+		this.MAX_SPEED *= .5;
+		this.FRONTIER *= .5;
+	}
+
+	public PilotState(Toroidal2DPhysics space, Genome genome){
+		setFOV(space);
+		this.FUEL_COEF *= genome.fuelCoefGene();
+		this.CARGO_CAPACITY *= genome.cargoCapacityGene();
+		this.MAX_SPEED *= genome.maxSpeedGene();
+		this.FRONTIER *= genome.frontierGene();
+
+	}
+=======
+>>>>>>> 355bf9fb6588050c352a91b4374e237a31f04728
 
 	/**
 	 * Generates a graph of connected nodes to be used for pilot path planning.
@@ -222,7 +266,7 @@ public class PilotState {
 	public void planPath(Toroidal2DPhysics space, Node start, Node goal){
 		Set<Node> closedList = new HashSet<Node>(); //list of nodes already evaluated
 		Set<Node> openList = new HashSet<Node>(); //list of nodes to be evaluated
-		HashMap<Node, Node> previousNode = new HashMap<Node, Node>();
+		WeakHashMap<Node, Node> previousNode = new WeakHashMap<Node, Node>();
 		
 		//Set start node values
 		start.setG(0);
@@ -278,7 +322,7 @@ public class PilotState {
 	 * @param start
 	 * @param goal
 	 */
-	public void setPath(Toroidal2DPhysics state, HashMap<Node, Node> previousNode, Node start, Node goal){
+	public void setPath(Toroidal2DPhysics state, WeakHashMap<Node, Node> previousNode, Node start, Node goal){
 		this.path.clear();
 		System.out.println("~~~~~~~SET PATH STARTED~~~~~~~~~~~~~");
 		Node current = goal; //Start from end, assume goal was found
@@ -424,7 +468,7 @@ public class PilotState {
 		//System.out.println("Step: " + space.getCurrentTimestep());
 
 		//get refueled
-		if (vessel.getEnergy() < LOW_FUEL){
+		if (vessel.getEnergy() < FUEL_COEF){
 			//System.out.println("~~~~~MOVING TO REFUEL~~~~~");
 			goal = findNearestRefuel(space, vessel);
 
@@ -459,6 +503,12 @@ public class PilotState {
 		this.genGraph(space, vessel);
 
 		Node start = this.nodes.get(vessel.getId());
+<<<<<<< HEAD
+
+		if (vessel.getEnergy() < FUEL_COEF){
+			//System.out.println("~~~~~Planning TO REFUEL~~~~~");
+			goal = this.nodes.get(findNearestRefuel(space, vessel).getId());
+=======
 		AbstractObject temp = null;
 		
 		if (vessel.getEnergy() < LOW_FUEL){
@@ -467,6 +517,7 @@ public class PilotState {
 			if(temp != null){
 				goal = this.nodes.get(temp.getId());
 			}
+>>>>>>> 355bf9fb6588050c352a91b4374e237a31f04728
 		}
 		//return resources to base
 		if (temp == null && vessel.getResources().getTotal() > CARGO_CAPACITY){
@@ -562,13 +613,13 @@ public class PilotState {
 		Vector2D distVec = space.findShortestDistanceVector(current, goal);
 
 		if (Math.abs(distVec.angleBetween(this.vessel.getPosition().getTranslationalVelocity())) > 30){
-			distVec = distVec.getUnitVector().multiply(SPEED/2);	//slowdown for allignment
+			distVec = distVec.getUnitVector().multiply(MAX_SPEED/2);	//slowdown for allignment
 			move = new MoveAction(space, current, goal, distVec);
 			// move.setKpRotational(36);
 			// move.setKvRotational(12);
 
 		} else {
-			distVec = distVec.getUnitVector().multiply(SPEED);		//controls speed in orientation
+			distVec = distVec.getUnitVector().multiply(MAX_SPEED);		//controls MAX_SPEED in orientation
 			move = new MoveAction(space, current, goal, distVec);
 			// move.setKpRotational(36);
 			// move.setKvRotational(12);
