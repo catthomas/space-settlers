@@ -9,42 +9,19 @@ import spacesettlers.objects.*;
 import spacesettlers.objects.resources.ResourcePile;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.*;
-<<<<<<< HEAD
-import stan5674.astar.Graph;
 import stan5674.Genome;
-=======
->>>>>>> 355bf9fb6588050c352a91b4374e237a31f04728
 
 /**
  * Use a pilot's perspective to make decisions
  *
  */
 public class PilotState {
-
-<<<<<<< HEAD
-	int FUEL_COEF = 2000; 		//point of return
-	int CARGO_CAPACITY = 3000; 	
-	int MAX_SPEED = 200;				//MAX_SPEED of travel coefficient
-	int FRONTIER = 500;			//min distance between bases
-
-	float FOV = 1000;			//Max distance to consider objects
-	int MIN_BASE_FUEL = 1000;	//Minimum base fuel to be considered a candidate for refueling
-	int EXE_TIME = 30;			//max time between planning
-	int CLOSE_ESC = 125;			//object is considered particularly close
-
-	Ship vessel;
-	Node goal;
-	WeakHashMap<UUID, Set<Node>> graph = new WeakHashMap<UUID, Set<Node>>();
-	WeakHashMap<UUID, Node> nodes = new WeakHashMap<UUID, Node>();
-	Stack<Node> path = new Stack<Node>();
-	Set<SpacewarGraphics> graphics = new HashSet<SpacewarGraphics>(); //Holds markers for A* path
-	int exe = this.EXE_TIME; 				//time spent executing current plan
-=======
-	private static int LOW_FUEL = 1000; 		//point of return
-	private static int CARGO_CAPACITY = 1500; 	//Max resources to carry
-	private static int SPEED = 100;				//speed of travel coefficient
+	private static int FUEL_COEF = 2000; 		//point of return
+	private static int CARGO_CAPACITY = 3000; 	//Max resources to carry
+	private static int MAX_SPEED = 200;				//speed of travel coefficient
+	private static int FRONTIER = 500;			//min distance between bases
+	
 	private float FOV = 1000;			//Max distance to consider objects
-	private static int FRONTIER = 250;			//min distance between bases
 	private static int MIN_BASE_FUEL = 1000;	//Minimum base fuel to be considered a candidate for refueling
 	private int EXE_TIME = 30;			//max time between planning
 	private int CLOSE_ESC = 125;			//object is considered particularly close
@@ -57,17 +34,11 @@ public class PilotState {
 	private Set<SpacewarGraphics> graphics = new HashSet<SpacewarGraphics>(); //Holds markers for A* path
 	private int exe = this.EXE_TIME; 				//time spent executing current plan
 
-	//constructor method
-	public PilotState(Toroidal2DPhysics space){
-		setFOV(space);
-		goal = null;
-	}
 	
 	//return the current graphics
 	public Set<SpacewarGraphics> getPathGraphics(){
 		return graphics;
 	}
->>>>>>> 355bf9fb6588050c352a91b4374e237a31f04728
 
 	//call in agent init to set FOV radius of pilot
 	public void setFOV(Toroidal2DPhysics space){
@@ -122,26 +93,21 @@ public class PilotState {
 			return this.h + this.g;
 		}
 	}
-
-<<<<<<< HEAD
+	
+	//constructor method
 	public PilotState(Toroidal2DPhysics space){
 		setFOV(space);
-		this.FUEL_COEF *= .5;
-		this.CARGO_CAPACITY *= .5;
-		this.MAX_SPEED *= .5;
-		this.FRONTIER *= .5;
+		goal = null;
 	}
 
 	public PilotState(Toroidal2DPhysics space, Genome genome){
 		setFOV(space);
+		goal = null;
 		this.FUEL_COEF *= genome.fuelCoefGene();
 		this.CARGO_CAPACITY *= genome.cargoCapacityGene();
 		this.MAX_SPEED *= genome.maxSpeedGene();
 		this.FRONTIER *= genome.frontierGene();
-
 	}
-=======
->>>>>>> 355bf9fb6588050c352a91b4374e237a31f04728
 
 	/**
 	 * Generates a graph of connected nodes to be used for pilot path planning.
@@ -503,31 +469,23 @@ public class PilotState {
 		this.genGraph(space, vessel);
 
 		Node start = this.nodes.get(vessel.getId());
-<<<<<<< HEAD
-
+		AbstractObject temp = null;
 		if (vessel.getEnergy() < FUEL_COEF){
 			//System.out.println("~~~~~Planning TO REFUEL~~~~~");
-			goal = this.nodes.get(findNearestRefuel(space, vessel).getId());
-=======
-		AbstractObject temp = null;
-		
-		if (vessel.getEnergy() < LOW_FUEL){
-			System.out.println("~~~~~Planning TO REFUEL~~~~~");
 			temp = findNearestRefuel(space, vessel);
 			if(temp != null){
 				goal = this.nodes.get(temp.getId());
 			}
->>>>>>> 355bf9fb6588050c352a91b4374e237a31f04728
 		}
 		//return resources to base
 		if (temp == null && vessel.getResources().getTotal() > CARGO_CAPACITY){
-			System.out.println("~~~~~Planning TO BASE~~~~~");
+			//System.out.println("~~~~~Planning TO BASE~~~~~");
 			temp = findNearestBase(space, vessel, false);
 			if(temp != null){
 				goal = this.nodes.get(temp.getId());
 			}
 		} else {	//just get resources
-			System.out.println("~~~~~Planning TO PROSPECT~~~~~");
+			//System.out.println("~~~~~Planning TO PROSPECT~~~~~");
 			temp = findNearestProspect(space, vessel);
 			if(temp != null){
 				goal = this.nodes.get(temp.getId());
