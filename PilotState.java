@@ -98,6 +98,10 @@ public class PilotState {
 	public PilotState(Toroidal2DPhysics space){
 		setFOV(space);
 		goal = null;
+		this.FUEL_COEF *= .5;
+		this.CARGO_CAPACITY *= .5;
+		this.MAX_SPEED *= .5;
+		this.FRONTIER *= .5;
 	}
 
 	public PilotState(Toroidal2DPhysics space, Genome genome){
