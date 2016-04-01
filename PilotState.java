@@ -1,18 +1,14 @@
 package stan5674;
 
-import java.awt.Color;
-import java.awt.geom.Ellipse2D;
 import java.util.*;
 
 import spacesettlers.actions.*;
-import spacesettlers.graphics.CircleGraphics;
 import spacesettlers.graphics.LineGraphics;
 import spacesettlers.graphics.SpacewarGraphics;
 import spacesettlers.objects.*;
 import spacesettlers.objects.resources.ResourcePile;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.*;
-import stan5674.astar.Graph;
 
 /**
  * Use a pilot's perspective to make decisions
@@ -20,28 +16,31 @@ import stan5674.astar.Graph;
  */
 public class PilotState {
 
-	static int LOW_FUEL = 1000; 		//point of return
-	static int CARGO_CAPACITY = 1500; 	
-	static int SPEED = 100;				//speed of travel coefficient
-	static float FOV = 1000;			//Max distance to consider objects
-	static int FRONTIER = 250;			//min distance between bases
-	static int MIN_BASE_FUEL = 1000;	//Minimum base fuel to be considered a candidate for refueling
-	static int EXE_TIME = 30;			//max time between planning
-	static int CLOSE_ESC = 125;			//object is considered particularly close
+	private static int LOW_FUEL = 1000; 		//point of return
+	private static int CARGO_CAPACITY = 1500; 	//Max resources to carry
+	private static int SPEED = 100;				//speed of travel coefficient
+	private float FOV = 1000;			//Max distance to consider objects
+	private static int FRONTIER = 250;			//min distance between bases
+	private static int MIN_BASE_FUEL = 1000;	//Minimum base fuel to be considered a candidate for refueling
+	private int EXE_TIME = 30;			//max time between planning
+	private int CLOSE_ESC = 125;			//object is considered particularly close
 
-	Ship vessel;
-	Node goal;
-	HashMap<UUID, Set<Node>> graph = new HashMap<UUID, Set<Node>>();
-	HashMap<UUID, Node> nodes = new HashMap<UUID, Node>();
-	Stack<Node> path = new Stack<Node>();
-	Set<SpacewarGraphics> graphics = new HashSet<SpacewarGraphics>(); //Holds markers for A* path
-	int exe = this.EXE_TIME; 				//time spent executing current plan
+	private Ship vessel;
+	private Node goal; //Goal location of vessel
+	private HashMap<UUID, Set<Node>> graph = new HashMap<UUID, Set<Node>>(); //Holds graph used for A*
+	private HashMap<UUID, Node> nodes = new HashMap<UUID, Node>();	//Holds nodes used in A* graph
+	private Stack<Node> path = new Stack<Node>(); //The path the vessel is following
+	private Set<SpacewarGraphics> graphics = new HashSet<SpacewarGraphics>(); //Holds markers for A* path
+	private int exe = this.EXE_TIME; 				//time spent executing current plan
 
+	/**
+	 * Class used to create graph for A*. 
+	 */
 	public class Node{
 		AbstractObject object;
-		double g;
-		double h;
-		public boolean isBypass;
+		double g; //Cumulative path cost
+		double h; //Heuristic variable
+		public boolean isBypass; //Was node created to pass another object?
 		
 		public Node(AbstractObject object){
 			this.object = object;
