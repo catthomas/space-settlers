@@ -10,10 +10,10 @@ import java.lang.Math;
  */
 public class Genome implements Serializable {
 
-	float FUEL_COEF; 			//determine when ship needs to return for fueling
+	float FUEL_COEF;
 	float CARGO_CAPACITY;
-	float MAX_SPEED;			//speed of travel coefficient
-	float FRONTIER;				//min distance between bases
+	float MAX_SPEED;
+	float FRONTIER;
 	float fitness = 0;
 
 	/**
@@ -29,27 +29,27 @@ public class Genome implements Serializable {
 		this.FRONTIER = (float)Math.random();
 	}
 
-	float fuelCoefGene(){
+	public float fuelCoefGene(){
 		return this.FUEL_COEF;
 	}
 
-	float cargoCapacityGene(){
+	public float cargoCapacityGene(){
 		return this.CARGO_CAPACITY;
 	}
 
-	float maxSpeedGene(){
+	public float maxSpeedGene(){
 		return this.MAX_SPEED;
 	}
 
-	float frontierGene(){
-		return FRONTIER;
+	public float frontierGene(){
+		return this.FRONTIER;
 	}
 
-	void setFitness(float fit){
+	public void setFitness(float fit){
 		this.fitness = fit;
 	}
 
-	float getFitness(){
+	public float getFitness(){
 		return this.fitness;
 	}
 
