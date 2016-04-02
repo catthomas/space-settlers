@@ -79,7 +79,7 @@ public class CatAdamAgent extends TeamClient {
 						double fitness= 0;
 
 						for(ImmutableTeamInfo info : space.getTeamInfo()){
-							if(info.getLadderName().equals("Adam Cat Rocket")){
+							if(info.getTeamName().equals(this.getTeamName())){
 								fitness = info.getScore() - this.totalScore; //difference in score is genome's fitness
 								this.totalScore = info.getScore();
 							}
@@ -155,8 +155,10 @@ public class CatAdamAgent extends TeamClient {
 	          FileOutputStream out = new FileOutputStream("stan5674/"+Genetic.getInstance().fileName);
 	          ObjectOutputStream oout = new ObjectOutputStream(out);
 	          
-	          //Evolve knowledge base
-	          Genetic.getInstance().evolve();
+	          //Evolve knowledge base if appropriate pop size
+	          if(Genetic.getInstance().pop.size() >= 40){
+	        	  Genetic.getInstance().evolve();
+	          }
 	          
 	          //Write knowledge to the file
 	          oout.writeObject(Genetic.getInstance());
