@@ -7,6 +7,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -22,6 +23,7 @@ import spacesettlers.actions.DoNothingAction;
 import spacesettlers.actions.PurchaseCosts;
 import spacesettlers.actions.PurchaseTypes;
 import spacesettlers.clients.ExampleKnowledge;
+import spacesettlers.clients.ImmutableTeamInfo;
 import spacesettlers.clients.TeamClient;
 import spacesettlers.graphics.SpacewarGraphics;
 import spacesettlers.objects.AbstractActionableObject;
@@ -43,6 +45,7 @@ import spacesettlers.simulator.Toroidal2DPhysics;
 public class CatAdamAgent extends TeamClient {
 	WeakHashMap<UUID, PilotState> pilots = new WeakHashMap<UUID, PilotState>();
 	int generation;
+	String outputFile = "learning.txt";
 	
 	public Map<UUID, AbstractAction> getMovementStart(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects) {
 	
@@ -114,9 +117,10 @@ public class CatAdamAgent extends TeamClient {
 			System.out.println("Already evolved and saved!");
 			return;
 		}
+		
 	      try {
 	          // find file
-	          FileOutputStream out = new FileOutputStream(Genetic.getInstance().fileName);
+	          FileOutputStream out = new FileOutputStream("stan5674/"+Genetic.getInstance().fileName);
 	          ObjectOutputStream oout = new ObjectOutputStream(out);
 	          
 	          //Evolve knowledge base
@@ -126,9 +130,23 @@ public class CatAdamAgent extends TeamClient {
 	          oout.writeObject(Genetic.getInstance());
 	          oout.flush();
 
-	          //Close write streams
+	          //Close object write stream
 	          oout.close();
 	          out.close();
+	          
+	         //Write to learning tracking file
+	        double score = 0;
+	        int teamCount = 0;
+	  		for(ImmutableTeamInfo info : space.getTeamInfo()){
+				if(info.getLadderName().equals("Adam Cat Rocket")){ //include score of all agents
+					score += info.getScore();
+					++teamCount;
+				}
+			}
+	  		PrintWriter print = new PrintWriter("stan5674/"+outputFile);
+	  		print.append(""+Genetic.getInstance().generation+","+ score+","+teamCount); //write generation number, score, # of teams running
+	        print.close();  
+	          
 	       } catch (Exception ex) {
 	          ex.printStackTrace();
 	       }

@@ -36,7 +36,7 @@ public class Genetic implements Serializable{
 	private static final long serialVersionUID = -4070454895004720955L;
 
 	private Genetic(){
-		File f = new File(fileName);
+		File f = new File("stan5674/"+fileName);
 		if(f.exists()) { //learning has occurred previously, set up on past knowledge
 			System.out.println("LEARNING HAS OCCURRED BEFORE! :)");
 			try {
@@ -46,7 +46,7 @@ public class Genetic implements Serializable{
 				ois = new ObjectInputStream(fis);
 				Genetic knowledge = (Genetic) ois.readObject(); //remove object from file when read?
 				
-				//Initializae values from file read
+				//Initialize values from file read
 				this.lastPop = knowledge.lastPop;
 				this.pop = knowledge.pop;
 				this.nextCand = knowledge.nextCand;
@@ -55,7 +55,7 @@ public class Genetic implements Serializable{
 				fis.close();
 			} catch (Exception e1) {
 				// TODO Auto-generated catch block
-				e1.printStackTrace();
+				System.out.println("Error occurred reading in Genetic file... starting from scratch.");
 				//error occurred, start from new knowledge..?
 				this.lastPop = null;
 				this.pop = new ArrayList<Genome>();
