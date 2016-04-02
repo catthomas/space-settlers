@@ -549,32 +549,7 @@ public class PilotState {
 		}
 	};
 
-<<<<<<< HEAD
-	//pilot decides what to buy from shop
-	public PurchaseTypes shop(Toroidal2DPhysics space, Ship vessel, ResourcePile funds, PurchaseCosts prices){
-		Position currentPosition = vessel.getPosition();
-		if (prices.canAfford(PurchaseTypes.SHIP, funds)){
-			//System.out.println("-----------------BUY A SHIP");
-			return PurchaseTypes.SHIP;
-		}
-		if (prices.canAfford(PurchaseTypes.BASE, funds)) {	//buy bases when you are in the frontier
-			for (Base base : space.getBases()) {
-				if (base.getTeamName().equalsIgnoreCase(vessel.getTeamName())) {
-					double distance = space.findShortestDistance(currentPosition, base.getPosition());
-					if (distance < FRONTIER) { 		//do not buy a base if within minimum frontier distance
-						return null;
-					}
-				}
-			}
 
-			return  PurchaseTypes.BASE;
-		}
-
-		return null;
-	};
-
-=======
->>>>>>> 49338011fe6b7278c3b6cbb353f92e067f9e537d
 	public Asteroid findNearestProspect(Toroidal2DPhysics space, Ship vessel){
 		List<Asteroid> prospects = getMinableAsteroids(space);
 		double shortest = Double.POSITIVE_INFINITY;
