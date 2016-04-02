@@ -462,22 +462,22 @@ public class PilotState {
 
 		Node start = this.nodes.get(vessel.getId());
 		AbstractObject temp = null;
-		if (vessel.getEnergy() < FUEL_COEF){
-			//System.out.println("~~~~~Planning TO REFUEL~~~~~");
+		if (vessel.getEnergy() < this.FUEL_COEF){
+			System.out.println("~~~~~Planning TO REFUEL~~~~~");
 			temp = findNearestRefuel(space, vessel);
 			if(temp != null){
 				goal = this.nodes.get(temp.getId());
 			}
 		}
 		//return resources to base
-		if (temp == null && vessel.getResources().getTotal() > CARGO_CAPACITY){
-			//System.out.println("~~~~~Planning TO BASE~~~~~");
+		else if (temp == null && vessel.getResources().getTotal() > CARGO_CAPACITY){
+			System.out.println("~~~~~Planning TO BASE~~~~~");
 			temp = findNearestBase(space, vessel, false);
 			if(temp != null){
 				goal = this.nodes.get(temp.getId());
 			}
 		} else {	//just get resources
-			//System.out.println("~~~~~Planning TO PROSPECT~~~~~");
+			System.out.println("~~~~~Planning TO PROSPECT~~~~~");
 			temp = findNearestProspect(space, vessel);
 			if(temp != null){
 				goal = this.nodes.get(temp.getId());
@@ -530,7 +530,7 @@ public class PilotState {
 	public PurchaseTypes shop(Toroidal2DPhysics space, Ship vessel, ResourcePile funds, PurchaseCosts prices){
 		Position currentPosition = vessel.getPosition();
 		if (prices.canAfford(PurchaseTypes.SHIP, funds)){
-			System.out.println("-----------------BUY A SHIP");
+			//System.out.println("-----------------BUY A SHIP");
 			return PurchaseTypes.SHIP;
 		}
 		if (prices.canAfford(PurchaseTypes.BASE, funds)) {	//buy bases when you are in the frontier
