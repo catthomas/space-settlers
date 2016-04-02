@@ -462,10 +462,10 @@ public class PilotState {
 
 
 		//System.out.println("~~~~~MOVING TO PROSPECT~~~~~");
-		goal = getProspectWithinFOVAndTrajectory(space, vessel, TRAJ_ANGLE); //favor within certain angle
-		if(goal == null){
+		//goal = getProspectWithinFOVAndTrajectory(space, vessel, TRAJ_ANGLE); //favor within certain angle
+		//if(goal == null){
 			goal = findNearestProspect(space, vessel);
-		}
+		//}
 
 		return optimalApproach(space, currentPosition, goal.getPosition());
 	};
