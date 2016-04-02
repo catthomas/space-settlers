@@ -42,11 +42,7 @@ import spacesettlers.simulator.Toroidal2DPhysics;
  */
 public class CatAdamAgent extends TeamClient {
 	WeakHashMap<UUID, PilotState> pilots = new WeakHashMap<UUID, PilotState>();
-	//PilotState pilot = new PilotState();
-	/**
-	 * Knowledge used for learning.
-	 */
-	Genetic evoKnowledge;
+	int generation;
 	
 	public Map<UUID, AbstractAction> getMovementStart(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects) {
 	
@@ -59,7 +55,7 @@ public class CatAdamAgent extends TeamClient {
 				Ship ship = (Ship) actionable;
 
 				if (!pilots.containsKey(ship.getId())){
-					pilots.put(ship.getId(), new PilotState(space, evoKnowledge.getNextCandidate()));
+					pilots.put(ship.getId(), new PilotState(space, Genetic.getInstance().getNextCandidate()));
 				}
 
 				AbstractAction action = new DoNothingAction();
@@ -86,7 +82,7 @@ public class CatAdamAgent extends TeamClient {
 
 
 				if (!pilots.containsKey(ship.getId())){
-					pilots.put(ship.getId(), new PilotState(space, evoKnowledge.getNextCandidate()));
+					pilots.put(ship.getId(), new PilotState(space, Genetic.getInstance().getNextCandidate()));
 				} else {
 					pilots.get(ship.getId()).assessPlan(space, ship);
 				}
@@ -101,27 +97,8 @@ public class CatAdamAgent extends TeamClient {
 	 */
 	@Override
 	public void initialize(Toroidal2DPhysics space) {
-		File f = new File("knowledge.ser");
-		if(f.exists()) { //learning has occurred previously, set up on past knowledge
-			System.out.println("LEARNING HAS OCCURED BEFORE! :)");
-			try {
-				FileInputStream fis;
-				ObjectInputStream ois;
-				fis = new FileInputStream(f);
-				ois = new ObjectInputStream(fis);
-				this.evoKnowledge = (Genetic) ois.readObject();
-				ois.close();
-				fis.close();
-			} catch (Exception e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-				//error occurred, start from new knowledge..
-				this.evoKnowledge = new Genetic();
-			}
-		} else { //learning has not occurred before
-			System.out.println("LEARNING HAS NOT OCCURED BEFORE! :(");
-			this.evoKnowledge = new Genetic();
-		}
+		//save what current generation number is
+		generation = Genetic.getInstance().generation;
 	}
 
 	/**
@@ -131,16 +108,21 @@ public class CatAdamAgent extends TeamClient {
 	 */
 	@Override
 	public void shutDown(Toroidal2DPhysics space) {
+		if(generation < Genetic.getInstance().generation){
+			//Evolve has already been run this game, return
+			System.out.println("Already evolved and saved!");
+			return;
+		}
 	      try {
-	          // create a new file with an ObjectOutputStream
-	          FileOutputStream out = new FileOutputStream("knowledge.ser");
+	          // find file
+	          FileOutputStream out = new FileOutputStream(Genetic.getInstance().fileName);
 	          ObjectOutputStream oout = new ObjectOutputStream(out);
-
-	          //Run evolution
-	          evoKnowledge.evolve();
+	          
+	          //Evolve knowledge base
+	          Genetic.getInstance().evolve();
 	          
 	          //Write knowledge to the file
-	          oout.writeObject(evoKnowledge);
+	          oout.writeObject(Genetic.getInstance());
 	          oout.flush();
 
 	          //Close write streams
@@ -149,6 +131,10 @@ public class CatAdamAgent extends TeamClient {
 	       } catch (Exception ex) {
 	          ex.printStackTrace();
 	       }
+	}
+	
+	public void updateKnowledgeFile(){
+		
 	}
 
 	@Override

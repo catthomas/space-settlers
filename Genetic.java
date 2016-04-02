@@ -1,5 +1,8 @@
 package stan5674;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.lang.Math;
 import java.util.*;
@@ -23,16 +26,54 @@ public class Genetic implements Serializable{
 
 	Random rand = new Random();
 	
+	/** Singleton class - in case multiple cat adam agents running on ladder at once **/
+	private static Genetic singleton = new Genetic();
+	String fileName = "knowledge.ser";
+	
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = -4070454895004720955L;
 
-	public Genetic(){
-		this.lastPop = null;
-		this.pop = new ArrayList<Genome>();
-		this.nextCand = 0;
-		this.generation = 0;
+	private Genetic(){
+		File f = new File(fileName);
+		if(f.exists()) { //learning has occurred previously, set up on past knowledge
+			System.out.println("LEARNING HAS OCCURRED BEFORE! :)");
+			try {
+				FileInputStream fis;
+				ObjectInputStream ois;
+				fis = new FileInputStream(f);
+				ois = new ObjectInputStream(fis);
+				Genetic knowledge = (Genetic) ois.readObject(); //remove object from file when read?
+				
+				//Initializae values from file read
+				this.lastPop = knowledge.lastPop;
+				this.pop = knowledge.pop;
+				this.nextCand = knowledge.nextCand;
+				this.generation = knowledge.generation;
+				ois.close();
+				fis.close();
+			} catch (Exception e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+				//error occurred, start from new knowledge..?
+				this.lastPop = null;
+				this.pop = new ArrayList<Genome>();
+				this.nextCand = 0;
+				this.generation = 0;
+			}
+		} else { //learning has not occurred before
+			System.out.println("LEARNING HAS NOT OCCURRED BEFORE! :(");
+			this.lastPop = null;
+			this.pop = new ArrayList<Genome>();
+			this.nextCand = 0;
+			this.generation = 0;
+		}
+	}
+	
+	/** Static 'instance' method to get singleton */
+	public static Genetic getInstance( ) {
+	   return singleton;
 	}
 
 	/*
