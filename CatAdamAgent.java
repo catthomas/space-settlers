@@ -49,7 +49,7 @@ public class CatAdamAgent extends TeamClient {
 	WeakHashMap<UUID, PilotState> pilots = new WeakHashMap<UUID, PilotState>();
 	int generation;
 	String outputFile = "learning.txt";
-	int evalTime = 1000;			//time steps to evaluate a genome
+	int evalTime = 5000;			//time steps to evaluate a genome
 	Genome currentGenome = null;	//the currently evaluated Genome
 	double totalScore = 0;			//used to calculate fitnesses
 
