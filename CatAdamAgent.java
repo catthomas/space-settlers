@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.WeakHashMap;
 
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.XStreamException;
@@ -21,6 +22,7 @@ import spacesettlers.clients.TeamClient;
 import spacesettlers.graphics.SpacewarGraphics;
 import spacesettlers.objects.AbstractActionableObject;
 import spacesettlers.objects.AbstractObject;
+import spacesettlers.objects.Base;
 import spacesettlers.objects.Ship;
 import spacesettlers.objects.powerups.SpaceSettlersPowerupEnum;
 import spacesettlers.objects.resources.ResourcePile;
@@ -35,7 +37,7 @@ import spacesettlers.simulator.Toroidal2DPhysics;
  * @author amy
  */
 public class CatAdamAgent extends TeamClient {
-	HashMap<UUID, PilotState> pilots = new HashMap<UUID, PilotState>();
+	WeakHashMap<UUID, PilotState> pilots = new WeakHashMap<UUID, PilotState>();
 	//PilotState pilot = new PilotState();
 	/**
 	 * Example knowledge used to show how to load in/save out to files for learning
@@ -53,10 +55,11 @@ public class CatAdamAgent extends TeamClient {
 				Ship ship = (Ship) actionable;
 
 				if (!pilots.containsKey(ship.getId())){
+					System.out.println("Added ship!!!!");
 					pilots.put(ship.getId(), new PilotState(space));
 				}
 
-				AbstractAction action;
+				AbstractAction action = new DoNothingAction();
 				action = pilots.get(ship.getId()).executePlan(space, ship);
 				actions.put(ship.getId(), action);
 				
@@ -65,6 +68,7 @@ public class CatAdamAgent extends TeamClient {
 				actions.put(actionable.getId(), new DoNothingAction());
 			}
 		} 
+		//System.out.println("There are " + pilots.size() + " ships");
 		return actions;
 	}
 
@@ -79,6 +83,7 @@ public class CatAdamAgent extends TeamClient {
 
 
 				if (!pilots.containsKey(ship.getId())){
+					System.out.println("Added ship!!!!");
 					pilots.put(ship.getId(), new PilotState(space));
 				} else {
 					pilots.get(ship.getId()).assessPlan(space, ship);
@@ -104,20 +109,20 @@ public class CatAdamAgent extends TeamClient {
 	 */
 	@Override
 	public void shutDown(Toroidal2DPhysics space) {
-		XStream xstream = new XStream();
-		xstream.alias("ExampleKnowledge", ExampleKnowledge.class);
-
-		try { 
-			// if you want to compress the file, change FileOuputStream to a GZIPOutputStream
-			xstream.toXML(myKnowledge, new FileOutputStream(new File(getKnowledgeFile())));
-		} catch (XStreamException e) {
-			// if you get an error, handle it somehow as it means your knowledge didn't save
-			// the error will happen the first time you run
-			myKnowledge = new ExampleKnowledge();
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			myKnowledge = new ExampleKnowledge();
-		}
+//		XStream xstream = new XStream();
+//		xstream.alias("ExampleKnowledge", ExampleKnowledge.class);
+//
+//		try { 
+//			// if you want to compress the file, change FileOuputStream to a GZIPOutputStream
+//			xstream.toXML(myKnowledge, new FileOutputStream(new File(getKnowledgeFile())));
+//		} catch (XStreamException e) {
+//			// if you get an error, handle it somehow as it means your knowledge didn't save
+//			// the error will happen the first time you run
+//			myKnowledge = new ExampleKnowledge();
+//		} catch (FileNotFoundException e) {
+//			// TODO Auto-generated catch block
+//			myKnowledge = new ExampleKnowledge();
+//		}
 	}
 
 	@Override
@@ -129,23 +134,66 @@ public class CatAdamAgent extends TeamClient {
 			Set<AbstractActionableObject> actionableObjects, 
 			ResourcePile resourcesAvailable, 
 			PurchaseCosts purchaseCosts) {
+//		HashMap<UUID, PurchaseTypes> purchases = new HashMap<UUID, PurchaseTypes>();
+//		PurchaseTypes purchase=null;
+//
+//		for (AbstractActionableObject actionableObject : actionableObjects) {
+//			if (actionableObject instanceof Ship) {
+//				Ship ship = (Ship) actionableObject;
+//
+//				purchase = pilots.get(ship.getId()).shop(space, ship, resourcesAvailable, purchaseCosts);	//ship gets a single purchase
+//				
+//
+//
+//				if (purchase != null) {
+//					purchases.put(ship.getId(), purchase);
+//				}
+//			}		
+//		}
 
 		HashMap<UUID, PurchaseTypes> purchases = new HashMap<UUID, PurchaseTypes>();
-		PurchaseTypes purchase=null;
+		double BASE_BUYING_DISTANCE = 200;
+		boolean bought_ship = false;
 
-		for (AbstractActionableObject actionableObject : actionableObjects) {
-			if (actionableObject instanceof Ship) {
-				Ship ship = (Ship) actionableObject;
+		// can I buy a ship?
+		if (purchaseCosts.canAfford(PurchaseTypes.SHIP, resourcesAvailable)) {
+			for (AbstractActionableObject actionableObject : actionableObjects) {
+				if (actionableObject instanceof Base) {
+					Base base = (Base) actionableObject;
+					System.out.println("Buying a ship!!");
+					purchases.put(base.getId(), PurchaseTypes.SHIP);
+					bought_ship = true;
+					break;
+				}
 
-				purchase = pilots.get(ship.getId()).shop(space, ship, resourcesAvailable, purchaseCosts);	//ship gets a single purchase
-				
+			}
 
+		}
+		if (purchaseCosts.canAfford(PurchaseTypes.BASE, resourcesAvailable) && bought_ship == false) {
+			for (AbstractActionableObject actionableObject : actionableObjects) {
+				if (actionableObject instanceof Ship) {
+					Ship ship = (Ship) actionableObject;
+					Set<Base> bases = space.getBases();
 
-				if (purchase != null) {
-					purchases.put(ship.getId(), purchase);
+					// how far away is this ship to a base of my team?
+					boolean buyBase = true;
+					for (Base base : bases) {
+						if (base.getTeamName().equalsIgnoreCase(getTeamName())) {
+							double distance = space.findShortestDistance(ship.getPosition(), base.getPosition());
+							if (distance < BASE_BUYING_DISTANCE) {
+								buyBase = false;
+							}
+						}
+					}
+					if (buyBase) {
+						purchases.put(ship.getId(), PurchaseTypes.BASE);
+						//bought_base = true;
+						System.out.println("Buying a base!!");
+						break;
+					}
 				}
 			}		
-		}
+		} 
 
 		return purchases;
 	}
