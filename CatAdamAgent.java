@@ -132,6 +132,24 @@ public class CatAdamAgent extends TeamClient {
 			Set<AbstractActionableObject> actionableObjects, 
 			ResourcePile resourcesAvailable, 
 			PurchaseCosts purchaseCosts) {
+//		HashMap<UUID, PurchaseTypes> purchases = new HashMap<UUID, PurchaseTypes>();
+//		PurchaseTypes purchase=null;
+//
+//		for (AbstractActionableObject actionableObject : actionableObjects) {
+//			if (actionableObject instanceof Ship) {
+//				Ship ship = (Ship) actionableObject;
+//
+//				purchase = pilots.get(ship.getId()).shop(space, ship, resourcesAvailable, purchaseCosts);	//ship gets a single purchase
+//				
+//
+//
+//				if (purchase != null) {
+//					purchases.put(ship.getId(), purchase);
+//				}
+//			}		
+//		}
+		
+		
 		HashMap<UUID, PurchaseTypes> purchases = new HashMap<UUID, PurchaseTypes>();
 		double BASE_BUYING_DISTANCE = 200;
 		boolean bought_ship = false;

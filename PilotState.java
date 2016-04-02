@@ -6,7 +6,6 @@ import spacesettlers.actions.*;
 import spacesettlers.graphics.LineGraphics;
 import spacesettlers.graphics.SpacewarGraphics;
 import spacesettlers.objects.*;
-import spacesettlers.objects.resources.ResourcePile;
 import spacesettlers.objects.weapons.Missile;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.*;
@@ -29,7 +28,7 @@ public class PilotState {
 
 	private Ship vessel;
 	
-	//Variables for A*
+	// Variables for A* and path planning
 	private boolean usePlanning = false; //turn A* on and off - runs more light weight if off
 	private Node goal; //Goal location of vessel
 	private WeakHashMap<UUID, Set<Node>> graph = new WeakHashMap<UUID, Set<Node>>(); //Holds graph used for A*
@@ -172,17 +171,6 @@ public class PilotState {
 		}
 		//System.out.println("~~~~~~Graph nodes generated: " + this.graph.size() + "~~~~~~");
 	};
-
-	public boolean isObjectObstruction(AbstractObject obj){
-		//if(obj.getClass() == Asteroid.class && !((Asteroid) obj).isMineable())
-		// if(obj.getClass() == Asteroid.class  || obj.getClass() == Ship.class
-		// 		|| obj.getClass() == Base.class) {
-		// 	return true;
-		// }	
-		// return false;
-		if(obj.getClass() == Beacon.class || (obj.getClass() == Asteroid.class && ((Asteroid) obj).isMineable())) return false;
-		else return true;
-	}
 	
 	//make new node beside any obstruction to end node
 	public Node generateBypassNode(Toroidal2DPhysics space, AbstractObject start, Set<AbstractObject> obs, AbstractObject end){
@@ -323,6 +311,9 @@ public class PilotState {
 		this.exe = 0;
 	}
 	
+	/**
+	 * Calculates A* efficiency for a node.
+	 */
 	public Node findLowestFNode(Set<Node> nodes){
 		Node best = null;		//pick one
 		
@@ -334,6 +325,9 @@ public class PilotState {
 		return best;
 	}
 	
+	/**
+	 * Finds heuristic cost for a node, based on euclidean distance.
+	 */
 	public double findH(Toroidal2DPhysics space, Node start, Node goal){
 		AbstractObject nodeObject = start.getObject();
 		if (nodeObject instanceof Asteroid && !((Asteroid)nodeObject).isMineable()){	//don't visit unmineable asteroids
@@ -351,10 +345,16 @@ public class PilotState {
 		return space.findShortestDistance(nodeObject.getPosition(), goal.getObject().getPosition());
 	}
 	
+	/**
+	 * Finds Total path cost for a node. 
+	 */
 	public double findG(Toroidal2DPhysics space, Node start, Node end){
 		return space.findShortestDistance(start.getObject().getPosition(), end.getObject().getPosition()) + start.getG();
 	}
 	
+	/**
+	 * Calculates A* efficiency for a node (start).
+	 */
 	public double findF(Toroidal2DPhysics space, Node start, Node end, Node goal){
 		return findH(space, start, goal) + findG(space, start, end);
 	}
@@ -432,9 +432,7 @@ public class PilotState {
 	//Pilot's instincts (failsafe actions)
 	public AbstractAction decideAction(Toroidal2DPhysics space, Ship vessel){
 		Position currentPosition = vessel.getPosition();
-		AbstractObject goal;
-
-		//System.out.println("Step: " + space.getCurrentTimestep());
+		AbstractObject goal = null;
 
 		//get refueled
 		if (vessel.getEnergy() < FUEL_COEF){
@@ -462,9 +460,11 @@ public class PilotState {
 
 
 		//System.out.println("~~~~~MOVING TO PROSPECT~~~~~");
-		goal = findNearestProspect(space, vessel);
+		goal = getProspectWithinFOVAndTrajectory(space, vessel, 40); //favor within certain angle
+		if(goal == null){
+			goal = findNearestProspect(space, vessel);
+		}
 
-		//System.out.println(goal.getPosition().getTranslationalVelocity());
 		return optimalApproach(space, currentPosition, goal.getPosition());
 	};
 
@@ -499,7 +499,9 @@ public class PilotState {
 		}
 	}
 	
-	////!------seems to aim for the final goal of a path instead of follow the path often------!
+	/**
+	 * Tracks the ship's status as it navigates A* path.
+	 */
 	public AbstractAction executePlan(Toroidal2DPhysics space, Ship vessel){
 		//System.out.println("~~~~~~~Starting plan Execution: "+ this.exe +"~~~~~~~");
 		this.vessel = vessel;
@@ -597,33 +599,6 @@ public class PilotState {
 		return minable;
 	};
 	
-
-	/**
-	 * Sorts the asteroid in space by total resource value.
-	 * Can be used to target higher value asteroids by the agent. 
-	 * 
-	 * @return List of asteroids ordered by total resources
-	 */
-	public List<Asteroid> asteroidsByResources(Toroidal2DPhysics space) {
-		//Comparator that utilizes total resource value 
-		Comparator<Asteroid> value = new Comparator<Asteroid>() {
-	        @Override
-	        public int compare(Asteroid a1, Asteroid a2) {
-	            if(a1.getResources().getTotal() < a2.getResources().getTotal()){
-	            	return -1;
-	            } else if (a1.getResources().getTotal() > a2.getResources().getTotal()){
-	            	return 1;
-	            } else{
-	            	return 0;
-	            }
-	        }
-	    };
-	    
-		List<Asteroid> asteroids = getMinableAsteroids(space);
-		Collections.sort(asteroids, value); //sort asteroids by total resource value
-		return asteroids;
-	} //end asteroidsByValue
-	
 	/**
 	 * Returns a list of all objects (asteroids, bases, other ships, beacons) within the pilot's field of view
 	 * TODO: test this method
@@ -645,43 +620,49 @@ public class PilotState {
 		}
 		return objects;
 	}
-
-	/**
-	 * Checks to see if the given base is about to die. For this,
-	 * it checks 1.) if the base is the home base and 2.) if it has
-	 * less than 100 energy available. 
-	 * 
-	 * @param base
-	 * @return Boolean saying whether the given base is about to die!
-	 */
-	public boolean isBaseNearDeath(Base base){
-		if(base.isHomeBase() && base.getEnergy() <= 100){
-			return true;
-		}
-		return false;
-	} //end isBaseNearDeath
 	
 	
 	/**
-	 * 
-	 * @param space
-	 * @param vessel
-	 * @param angle
-	 * @return
+	 * Returns the closest mineable asteroid or beacon that is within a 
+	 * specified range and angle.
 	 */
-	public Set<AbstractObject> getProspectsWithinFOVAndTrajectory(Toroidal2DPhysics space, Ship vessel, double angle){
-		Set<AbstractObject> objects = new HashSet<AbstractObject>();
+	public AbstractObject getProspectWithinFOVAndTrajectory(Toroidal2DPhysics space, Ship vessel, double angle){
+		AbstractObject target = null;
+		double shortest = Double.MAX_VALUE;
 		Position currentPosition = vessel.getPosition();
 	
 	
 		for (AbstractObject obj : space.getAllObjects()) {
 			Vector2D dist = space.findShortestDistanceVector(currentPosition, obj.getPosition());
 
-			if (dist.getMagnitude() < this.FOV && (obj instanceof Beacon || (obj instanceof Asteroid && ((Asteroid) obj).isMineable() == true))
-					&& Math.abs(dist.angleBetween(currentPosition.getTranslationalVelocity())) > 30) {
-				objects.add(obj);
+			if (dist.getMagnitude() < this.FOV && dist.getMagnitude() < shortest && (obj instanceof Beacon || (obj instanceof Asteroid && ((Asteroid) obj).isMineable() == true))
+					&& Math.abs(dist.angleBetween(currentPosition.getTranslationalVelocity())) <= angle) {
+				target = obj;
 			}
 		}
-		return objects;
+		return target;
 	}
+	
+	//pilot decides what to buy from shop
+	public PurchaseTypes shop(Toroidal2DPhysics space, Ship vessel, ResourcePile funds, PurchaseCosts prices){
+		Position currentPosition = vessel.getPosition();
+		if (prices.canAfford(PurchaseTypes.SHIP, funds)){
+			//System.out.println("-----------------BUY A SHIP");
+			return PurchaseTypes.SHIP;
+		}
+		if (prices.canAfford(PurchaseTypes.BASE, funds)) {	//buy bases when you are in the frontier
+			for (Base base : space.getBases()) {
+				if (base.getTeamName().equalsIgnoreCase(vessel.getTeamName())) {
+					double distance = space.findShortestDistance(currentPosition, base.getPosition());
+					if (distance < FRONTIER) { 		//do not buy a base if within minimum frontier distance
+						return null;
+					}
+				}
+			}
+
+			return  PurchaseTypes.BASE;
+		}
+
+		return null;
+	};
 }
