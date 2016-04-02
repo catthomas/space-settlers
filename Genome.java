@@ -27,6 +27,12 @@ public class Genome implements Serializable {
 		}
 	}
 
+	//new Genome based off given genes
+	public Genome(float[] genes){
+		this.genes = Arrays.copyOf(genes, genes.length);
+		this.fitness = 0;
+	}
+
 	//copy constructor
 	public Genome(Genome g){
 		this.genes = Arrays.copyOf(g.getGenes(), g.getGenes().length);

@@ -118,7 +118,7 @@ public class Genetic implements Serializable{
 			}
 		}
 		
-		return new Genome(winner);
+		return new Genome(winner.getGenes());
 	}
 
 	public void evolve(){
@@ -133,9 +133,9 @@ public class Genetic implements Serializable{
 		Collections.sort(this.pop, (a, b) -> (int)(b.getFitness() - a.getFitness()));
 		Collections.sort(selection, (a, b) -> (int)(b.getFitness() - a.getFitness()));		//sort selection in descending order of fitness
 
-		for (int i = 0; i < this.ELITE_CLONES; i++){	//clone best genomes to next generation without change 
+		for (int i = 0; i < this.ELITE_CLONES; i++){	//clone best genomes to next generation without change (resetting fitness)
 			if (i < this.pop.size())
-				nextGen.add(new Genome(this.pop.get(i)));
+				nextGen.add(new Genome(this.pop.get(i).getGenes()));
 		}
 
 		Genome a;
@@ -143,7 +143,8 @@ public class Genetic implements Serializable{
 
 		while(nextGen.size() < this.pop.size()){		//make next generation at least as large
 			a = selection.remove(0);
-			b = selection.remove(0);
+			if (selection.size() > 0){ b = selection.remove(0);}
+			else {b = new Genome(this.pop.get(0).getGenes());}		//If out of selected Genomes, clone the best one
 
 			this.cross(a, b);
 
