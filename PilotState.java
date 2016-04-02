@@ -17,13 +17,13 @@ import stan5674.Genome;
  *
  */
 public class PilotState {
-	private static int FUEL_COEF = 2000; 		//point of return
-	private static int CARGO_CAPACITY = 3000; 	//Max resources to carry
-	private static int MAX_SPEED = 200;				//speed of travel coefficient
-	private static int FRONTIER = 500;			//min distance between bases
+	private int FUEL_COEF = 2000; 		//point of return
+	private int CARGO_CAPACITY = 3000; 	//Max resources to carry
+	private int MAX_SPEED = 200;				//speed of travel coefficient
+	private int FRONTIER = 500;			//min distance between bases
 	
 	private float FOV = 1000;			//Max distance to consider objects
-	private static int MIN_BASE_FUEL = 1000;	//Minimum base fuel to be considered a candidate for refueling
+	private int MIN_BASE_FUEL = 1000;	//Minimum base fuel to be considered a candidate for refueling
 	private int EXE_TIME = 30;			//max time between planning
 	private int CLOSE_ESC = 125;			//object is considered particularly close
 
@@ -31,8 +31,6 @@ public class PilotState {
 	private Node goal; //Goal location of vessel
 	private WeakHashMap<UUID, Set<Node>> graph = new WeakHashMap<UUID, Set<Node>>(); //Holds graph used for A*
 	private WeakHashMap<UUID, Node> nodes = new WeakHashMap<UUID, Node>();	//Holds nodes used in A* graph
-//	private HashMap<UUID, Set<Node>> graph = new HashMap<UUID, Set<Node>>(); //Holds graph used for A*
-//	private HashMap<UUID, Node> nodes = new HashMap<UUID, Node>();	//Holds nodes used in A* graph
 	private Stack<Node> path = new Stack<Node>(); //The path the vessel is following
 	private Set<SpacewarGraphics> graphics = new HashSet<SpacewarGraphics>(); //Holds markers for A* path
 	private int exe = this.EXE_TIME; 				//time spent executing current plan
@@ -142,9 +140,7 @@ public class PilotState {
 		//System.out.println("~~~~~~Objects in FOV: " + objects.size() + "~~~~~~~");
 
 		for (AbstractObject a : objects){		//initialize all nodes
-			//if(!isObjectObstruction(a)){
-				this.nodes.put(a.getId(), new Node(a));
-			//}
+			this.nodes.put(a.getId(), new Node(a));
 		}
 
 		for (AbstractObject a : objects){
@@ -360,18 +356,6 @@ public class PilotState {
 		return findH(space, start, goal) + findG(space, start, end);
 	}
 
-	//How do we know when we reach a subgoal?
-	public void assessPlan(Toroidal2DPhysics space, Ship vessel){
-		if (!this.path.empty())
-			if (2*vessel.getRadius() >= space.findShortestDistance(vessel.getPosition(), this.path.peek().getObject().getPosition())){
-				this.path.pop();			//subgoal achieved
-				//System.out.println("~~~~~~Popping node~~~~~~~");
-			}
-		if (this.path.empty()){				//plan complete
-			this.exe = this.EXE_TIME;		//replan next timestep
-		}
-	};
-
 	//finds the closest fuel beacon
 	public Beacon findNearestBeacon(Toroidal2DPhysics space, Ship vessel){
 		Set<Beacon> beacons = space.getBeacons();
@@ -536,6 +520,18 @@ public class PilotState {
 		//System.out.println("~~~~~~Executing Plan: " + this.exe + "~~~~~~");
 
 		return this.optimalApproach(space, vessel.getPosition(), target);
+	};
+
+	//How do we know when we reach a subgoal?
+	public void assessPlan(Toroidal2DPhysics space, Ship vessel){
+		if (!this.path.empty())
+			if (2*vessel.getRadius() >= space.findShortestDistance(vessel.getPosition(), this.path.peek().getObject().getPosition())){
+				this.path.pop();			//subgoal achieved
+				System.out.println("~~~~~~Popping node~~~~~~~");
+			}
+		if (this.path.empty()){				//plan complete
+			this.exe = this.EXE_TIME;		//replan next timestep
+		}
 	};
 
 	//pilot decides what to buy from shop
