@@ -2,6 +2,7 @@ package stan5674;
 
 import java.io.Serializable;
 import java.lang.Math;
+import java.util.*;
 
 /**
  * Class used for learning!
@@ -17,32 +18,19 @@ public class Genome implements Serializable {
 	 * Unique ID of class in order to be written to a file
 	 */
 	private static final long serialVersionUID = -2069500657684221613L;
-	
-	//...testing...
-	//public static void main(String[] args){
-	// 	Genome g = new Genome();
-	// 	System.out.println(g.fuelCoefGene());
-	// 	g.setFuelCoef(8.8f);
-	// 	System.out.println(g.fuelCoefGene());
-
-	// 	g.getGenes()[0] = 16.16f;
-
-	// 	System.out.println(g.fuelCoefGene());
-
-	// 	float [] b = g.getGenes();
-
-	// 	b[0] = 32.32f;
-
-	// 	System.out.println(g.fuelCoefGene());
-	// }
 
 	public Genome(){
-		//Generate DNA
 		genes = new float[4];
 
 		for (int i = 0; i<4; i++){
 			this.genes[i] = (float)Math.random();
 		}
+	}
+
+	//copy constructor
+	public Genome(Genome g){
+		this.genes = Arrays.copyOf(g.getGenes(), g.getGenes().length);
+		this.fitness = g.getFitness();
 	}
 
 	public float fuelCoefGene(){
@@ -77,16 +65,20 @@ public class Genome implements Serializable {
 		this.genes[3] = gene;
 	}
 
-	public void setFitness(float fit){
-		this.fitness = fit;
-	}
-
 	public float getFitness(){
 		return this.fitness;
 	}
 
+	public void setFitness(float fit){
+		this.fitness = fit;
+	}
+
 	public float[] getGenes(){
 		return this.genes;
+	}
+
+	public void setGenes(float[] genes){
+		this.genes = genes;
 	}
 
 } //end Genome

@@ -475,22 +475,22 @@ public class PilotState {
 	
 		Node start = this.nodes.get(vessel.getId());
 		AbstractObject temp = null;
-		if (vessel.getEnergy() < FUEL_COEF){
-			//System.out.println("~~~~~Planning TO REFUEL~~~~~");
+		if (vessel.getEnergy() < this.FUEL_COEF){
+			System.out.println("~~~~~Planning TO REFUEL~~~~~");
 			temp = findNearestRefuel(space, vessel);
 			if(temp != null){
 				goal = this.nodes.get(temp.getId());
 			}
 		}
 		//return resources to base
-		if (temp == null && vessel.getResources().getTotal() > CARGO_CAPACITY){
-			//System.out.println("~~~~~Planning TO BASE~~~~~");
+		else if (temp == null && vessel.getResources().getTotal() > CARGO_CAPACITY){
+			System.out.println("~~~~~Planning TO BASE~~~~~");
 			temp = findNearestBase(space, vessel, false);
 			if(temp != null){
 				goal = this.nodes.get(temp.getId());
 			}
 		} else {	//just get resources
-			//System.out.println("~~~~~Planning TO PROSPECT~~~~~");
+			System.out.println("~~~~~Planning TO PROSPECT~~~~~");
 			temp = getProspectWithinFOVAndTrajectory(space, vessel, TRAJ_ANGLE); //favor within certain angle
 			if(temp == null){
 				temp = findNearestProspect(space, vessel);
@@ -548,6 +548,7 @@ public class PilotState {
 			this.exe = this.EXE_TIME;		//replan next timestep
 		}
 	};
+
 
 	public Asteroid findNearestProspect(Toroidal2DPhysics space, Ship vessel){
 		List<Asteroid> prospects = getMinableAsteroids(space);
