@@ -55,7 +55,6 @@ public class CatAdamAgent extends TeamClient {
 				Ship ship = (Ship) actionable;
 
 				if (!pilots.containsKey(ship.getId())){
-					System.out.println("Added ship!!!!");
 					pilots.put(ship.getId(), new PilotState(space));
 				}
 
@@ -83,7 +82,6 @@ public class CatAdamAgent extends TeamClient {
 
 
 				if (!pilots.containsKey(ship.getId())){
-					System.out.println("Added ship!!!!");
 					pilots.put(ship.getId(), new PilotState(space));
 				} else {
 					pilots.get(ship.getId()).assessPlan(space, ship);
@@ -134,23 +132,6 @@ public class CatAdamAgent extends TeamClient {
 			Set<AbstractActionableObject> actionableObjects, 
 			ResourcePile resourcesAvailable, 
 			PurchaseCosts purchaseCosts) {
-//		HashMap<UUID, PurchaseTypes> purchases = new HashMap<UUID, PurchaseTypes>();
-//		PurchaseTypes purchase=null;
-//
-//		for (AbstractActionableObject actionableObject : actionableObjects) {
-//			if (actionableObject instanceof Ship) {
-//				Ship ship = (Ship) actionableObject;
-//
-//				purchase = pilots.get(ship.getId()).shop(space, ship, resourcesAvailable, purchaseCosts);	//ship gets a single purchase
-//				
-//
-//
-//				if (purchase != null) {
-//					purchases.put(ship.getId(), purchase);
-//				}
-//			}		
-//		}
-
 		HashMap<UUID, PurchaseTypes> purchases = new HashMap<UUID, PurchaseTypes>();
 		double BASE_BUYING_DISTANCE = 200;
 		boolean bought_ship = false;
@@ -160,7 +141,6 @@ public class CatAdamAgent extends TeamClient {
 			for (AbstractActionableObject actionableObject : actionableObjects) {
 				if (actionableObject instanceof Base) {
 					Base base = (Base) actionableObject;
-					System.out.println("Buying a ship!!");
 					purchases.put(base.getId(), PurchaseTypes.SHIP);
 					bought_ship = true;
 					break;
@@ -187,8 +167,6 @@ public class CatAdamAgent extends TeamClient {
 					}
 					if (buyBase) {
 						purchases.put(ship.getId(), PurchaseTypes.BASE);
-						//bought_base = true;
-						System.out.println("Buying a base!!");
 						break;
 					}
 				}
