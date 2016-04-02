@@ -108,6 +108,7 @@ public class CatAdamAgent extends TeamClient {
 	 */
 	@Override
 	public void shutDown(Toroidal2DPhysics space) {
+  	  System.out.println("SHUTTING DOWN");
 		if(generation < Genetic.getInstance().generation){
 			//Evolve has already been run this game, return
 			System.out.println("Already evolved and saved!");
@@ -131,10 +132,6 @@ public class CatAdamAgent extends TeamClient {
 	       } catch (Exception ex) {
 	          ex.printStackTrace();
 	       }
-	}
-	
-	public void updateKnowledgeFile(){
-		
 	}
 
 	@Override
