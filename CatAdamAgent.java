@@ -143,8 +143,8 @@ public class CatAdamAgent extends TeamClient {
 					++teamCount;
 				}
 			}
-	  		PrintWriter print = new PrintWriter("stan5674/"+outputFile);
-	  		print.append(""+Genetic.getInstance().generation+","+ score+","+teamCount); //write generation number, score, # of teams running
+	  		PrintWriter print = new PrintWriter(new FileOutputStream(new File("stan5674/"+outputFile), true));
+	  		print.append(""+Genetic.getInstance().generation+","+ score+","+teamCount+"\n"); //write generation number, score, # of teams running
 	        print.close();  
 	          
 	       } catch (Exception ex) {
