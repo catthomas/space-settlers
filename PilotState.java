@@ -7,6 +7,7 @@ import spacesettlers.graphics.LineGraphics;
 import spacesettlers.graphics.SpacewarGraphics;
 import spacesettlers.objects.*;
 import spacesettlers.objects.resources.ResourcePile;
+import spacesettlers.objects.weapons.Missile;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.*;
 import stan5674.Genome;
@@ -27,6 +28,9 @@ public class PilotState {
 	private int CLOSE_ESC = 125;			//object is considered particularly close
 
 	private Ship vessel;
+	
+	//Variables for A*
+	private boolean usePlanning = false; //turn A* on and off - runs more light weight if off
 	private Node goal; //Goal location of vessel
 	private WeakHashMap<UUID, Set<Node>> graph = new WeakHashMap<UUID, Set<Node>>(); //Holds graph used for A*
 	private WeakHashMap<UUID, Node> nodes = new WeakHashMap<UUID, Node>();	//Holds nodes used in A* graph
@@ -104,6 +108,7 @@ public class PilotState {
 		this.FRONTIER *= .5;
 	}
 
+	//learning constructor method
 	public PilotState(Toroidal2DPhysics space, Genome genome){
 		setFOV(space);
 		goal = null;
@@ -136,7 +141,7 @@ public class PilotState {
 			objects.add(beacon);
 		}
 
-		//System.out.println("~~~~~~Objects in FOV: " + objects.size() + "~~~~~~~");
+		System.out.println("~~~~~~Objects in FOV: " + objects.size() + "~~~~~~~");
 
 		for (AbstractObject a : objects){		//initialize all nodes
 			this.nodes.put(a.getId(), new Node(a));
@@ -154,9 +159,9 @@ public class PilotState {
 				if (space.isPathClearOfObstructions(a.getPosition(), b.getPosition(), obs, vessel.getRadius()*2)){
 					children.add(this.nodes.get(b.getId()));
 				}	else {
-					Node bypass = this.generateBypassNode(space, a, obs, b);
-					if (bypass != null)
-						children.add(bypass);	//generates a node beside obstruction
+//					Node bypass = this.generateBypassNode(space, a, obs, b);
+//					if (bypass != null)
+//						children.add(bypass);	//generates a node beside obstruction
 					//children.add(this.nodes.get(b.getId()));
 					
 				}
@@ -175,7 +180,7 @@ public class PilotState {
 		// 	return true;
 		// }	
 		// return false;
-		if(obj.getClass() == Beacon.class) return false;
+		if(obj.getClass() == Beacon.class || (obj.getClass() == Asteroid.class && ((Asteroid) obj).isMineable())) return false;
 		else return true;
 	}
 	
@@ -234,10 +239,15 @@ public class PilotState {
 
 	//Plans a path from one node on the hashmap to a goal node (both start and goal must be in the map), following A*
 	public void planPath(Toroidal2DPhysics space, Node start, Node goal){
-		Set<Node> closedList = new HashSet<Node>(); //list of nodes already evaluated
-		Set<Node> openList = new HashSet<Node>(); //list of nodes to be evaluated
-		WeakHashMap<Node, Node> previousNode = new WeakHashMap<Node, Node>();
+		if(goal == null || start == null || !this.graph.containsKey(goal.getObject().getId()) 
+				|| !this.graph.containsKey(start.getObject().getId())){
+			return; //no goal or start available - don't plan
+		}
 		
+		Set<UUID> closedList = new HashSet<UUID>(); //list of nodes already evaluated
+		Set<Node> openList = new HashSet<Node>(); //list of nodes to be evaluated
+		WeakHashMap<UUID, UUID> previousNode = new WeakHashMap<UUID, UUID>();
+
 		//Set start node values
 		start.setG(0);
 		start.setH(findH(space, start, goal)); 
@@ -250,15 +260,15 @@ public class PilotState {
 
 			//System.out.println("~~~~~~~Visiting nodeID: "+ current.getObject().getId() +"~~~~~~");
 			
-			if(current.equals(goal)){ //goal found - return path!
+			if(current.getObject().getId().equals(goal.getObject().getId())){ //goal found - return path!
 				this.setPath(space, previousNode, start, goal);
-				System.out.println("~~~~~Planning successful, size: " + this.path.size() +"~~~~~");
+				//System.out.println("~~~~~Planning successful, size: " + this.path.size()~~~~~");
 				return;
 			}
 			
 			//Mark current as evaluated, add to closedList
 			openList.remove(current); 
-			closedList.add(current);
+			closedList.add(current.getObject().getId());
 			
 			//expand current's neighbors
 			Set<Node> neighbors = this.graph.get(current.getObject().getId());
@@ -266,24 +276,24 @@ public class PilotState {
 			//System.out.println("~~~~~~~~Expanding " + neighbors.size() + " neighbors ~~~~~~~~");
 
 			for(Node neighbor : neighbors){		
-				if(!closedList.contains(neighbor)){
+				if(!closedList.contains(neighbor.getObject().getId())){
 					double h = findH(space, neighbor, goal);
 					double g = findG(space, current, neighbor);
 					
 					if(h < neighbor.getH()){
 						neighbor.setH(h);
-						previousNode.put(neighbor, current);
+						previousNode.put(neighbor.getObject().getId(), current.getObject().getId());
 					}
 					if(g < neighbor.getG()){
 						neighbor.setG(g);
-						previousNode.put(neighbor, current);
+						previousNode.put(neighbor.getObject().getId(), current.getObject().getId());
 					}
 					openList.add(neighbor); 
 				}
 			}
 		}
 
-		System.out.println("~~~~~~~PLANNING FAILED~~~~~~~~");
+		//System.out.println("~~~~~~~PLANNING FAILED~~~~~~~~");
 	}
 	
 	/**
@@ -292,23 +302,24 @@ public class PilotState {
 	 * @param start
 	 * @param goal
 	 */
-	public void setPath(Toroidal2DPhysics state, WeakHashMap<Node, Node> previousNode, Node start, Node goal){
+	public void setPath(Toroidal2DPhysics state, WeakHashMap<UUID, UUID> previousNode, Node start, Node goal){
+		//System.out.println("~~~~~~~SET PATH STARTED~~~~~~~~~~~~~");
 		this.path.clear();
-		System.out.println("~~~~~~~SET PATH STARTED~~~~~~~~~~~~~");
+		this.graphics.clear();
+		
 		Node current = goal; //Start from end, assume goal was found
-		graphics.clear(); //clear graphics
 		Position prevPos;
 
 		while(current != start){
 			this.path.push(current); //add to path
 			prevPos = current.getObject().getPosition(); //get position of node
 			//graphics.add(new CircleGraphics(2, Color.RED, prevPos));	//mark location of node on map
-			current = previousNode.get(current); //switch to next node
+			current = nodes.get(previousNode.get(current.getObject().getId())); //switch to next node
 			//add a line between this node and last
 			graphics.add(new LineGraphics(current.getObject().getPosition(), prevPos, 
 					state.findShortestDistanceVector(current.getObject().getPosition(), prevPos))); 
 		}
-		System.out.println("~~~~~~~SET PATH ENDED~~~~~~~~~~~~~");
+		//System.out.println("~~~~~~~SET PATH ENDED~~~~~~~~~~~~~");
 		this.exe = 0;
 	}
 	
@@ -325,16 +336,16 @@ public class PilotState {
 	
 	public double findH(Toroidal2DPhysics space, Node start, Node goal){
 		AbstractObject nodeObject = start.getObject();
-		if (nodeObject instanceof Asteroid && !((Asteroid)nodeObject).isMineable()){	//don't visit asteroids
-			return Double.POSITIVE_INFINITY;
+		if (nodeObject instanceof Asteroid && !((Asteroid)nodeObject).isMineable()){	//don't visit unmineable asteroids
+			return Double.MAX_VALUE;
 		} else if (nodeObject instanceof Base){
 			if (!(((Base)nodeObject).getTeam().getShips().contains(this.vessel))){
-				return Double.POSITIVE_INFINITY;	//don't run into other team's bases
+				return Double.MAX_VALUE;	//don't run into other team's bases
 			} else if (!(goal.getObject() instanceof Base)){
-				return Double.POSITIVE_INFINITY;
+				return Double.MAX_VALUE; //don't run into our base if not a goal
 			}
-		} else if (nodeObject instanceof Ship){
-			return Double.POSITIVE_INFINITY;	//or their ships
+		} else if (nodeObject instanceof Ship || nodeObject instanceof Missile){
+			return Double.MAX_VALUE;	//or their ships & bullets
 		}
 	//System.out.println("~~~~~~~Getting H for: "+ nodeObject.getPosition() + " to: " + goal.getObject().getPosition() + "~~~~~~~~~~");
 		return space.findShortestDistance(nodeObject.getPosition(), goal.getObject().getPosition());
@@ -459,7 +470,7 @@ public class PilotState {
 
 	public void prePlan(Toroidal2DPhysics space, Ship vessel){
 		this.genGraph(space, vessel);
-
+	
 		Node start = this.nodes.get(vessel.getId());
 		AbstractObject temp = null;
 		if (vessel.getEnergy() < this.FUEL_COEF){
@@ -487,11 +498,15 @@ public class PilotState {
 			this.planPath(space, start, goal);	//find best path to goal
 		}
 	}
+	
 	////!------seems to aim for the final goal of a path instead of follow the path often------!
 	public AbstractAction executePlan(Toroidal2DPhysics space, Ship vessel){
 		//System.out.println("~~~~~~~Starting plan Execution: "+ this.exe +"~~~~~~~");
-		
 		this.vessel = vessel;
+		
+		if(this.usePlanning == false){ // do not plan - run failsale
+			return this.decideAction(space, vessel);			//failsafe heuristic
+		}
 
 		if (this.exe >= this.EXE_TIME || this.path.isEmpty()){		//Time to replan
 			this.prePlan(space, vessel);
@@ -503,7 +518,7 @@ public class PilotState {
 			target = this.path.peek().getObject().getPosition();		//get goal location
 		}
 		else {
-			System.out.println("~~~~~~~~FAIL SAFE~~~~~~~~~");
+			//System.out.println("~~~~~~~~FAIL SAFE~~~~~~~~~");
 			return this.decideAction(space, vessel);			//failsafe heuristic
 		}
 
@@ -516,16 +531,18 @@ public class PilotState {
 
 	//How do we know when we reach a subgoal?
 	public void assessPlan(Toroidal2DPhysics space, Ship vessel){
+		if(this.usePlanning == false) return;
 		if (!this.path.empty())
 			if (2*vessel.getRadius() >= space.findShortestDistance(vessel.getPosition(), this.path.peek().getObject().getPosition())){
 				this.path.pop();			//subgoal achieved
-				System.out.println("~~~~~~Popping node~~~~~~~");
+				//System.out.println("~~~~~~Popping node~~~~~~~");
 			}
 		if (this.path.empty()){				//plan complete
 			this.exe = this.EXE_TIME;		//replan next timestep
 		}
 	};
 
+<<<<<<< HEAD
 	//pilot decides what to buy from shop
 	public PurchaseTypes shop(Toroidal2DPhysics space, Ship vessel, ResourcePile funds, PurchaseCosts prices){
 		Position currentPosition = vessel.getPosition();
@@ -549,6 +566,8 @@ public class PilotState {
 		return null;
 	};
 
+=======
+>>>>>>> 49338011fe6b7278c3b6cbb353f92e067f9e537d
 	public Asteroid findNearestProspect(Toroidal2DPhysics space, Ship vessel){
 		List<Asteroid> prospects = getMinableAsteroids(space);
 		double shortest = Double.POSITIVE_INFINITY;
@@ -667,4 +686,28 @@ public class PilotState {
 		}
 		return false;
 	} //end isBaseNearDeath
+	
+	
+	/**
+	 * 
+	 * @param space
+	 * @param vessel
+	 * @param angle
+	 * @return
+	 */
+	public Set<AbstractObject> getProspectsWithinFOVAndTrajectory(Toroidal2DPhysics space, Ship vessel, double angle){
+		Set<AbstractObject> objects = new HashSet<AbstractObject>();
+		Position currentPosition = vessel.getPosition();
+	
+	
+		for (AbstractObject obj : space.getAllObjects()) {
+			Vector2D dist = space.findShortestDistanceVector(currentPosition, obj.getPosition());
+
+			if (dist.getMagnitude() < this.FOV && (obj instanceof Beacon || (obj instanceof Asteroid && ((Asteroid) obj).isMineable() == true))
+					&& Math.abs(dist.angleBetween(currentPosition.getTranslationalVelocity())) > 30) {
+				objects.add(obj);
+			}
+		}
+		return objects;
+	}
 }
