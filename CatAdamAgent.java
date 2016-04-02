@@ -1,5 +1,8 @@
 package stan5674;
 
+import stan5674.Genetic;
+import stan5674.Genome;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -46,6 +49,10 @@ public class CatAdamAgent extends TeamClient {
 	WeakHashMap<UUID, PilotState> pilots = new WeakHashMap<UUID, PilotState>();
 	int generation;
 	String outputFile = "learning.txt";
+	int evalTime = 1000;			//time steps to evaluate a genome
+	Genome currentGenome = null;	//the currently evaluated Genome
+	double totalScore = 0;			//used to calculate fitnesses
+
 	
 	public Map<UUID, AbstractAction> getMovementStart(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects) {
 	
@@ -57,12 +64,38 @@ public class CatAdamAgent extends TeamClient {
 			if (actionable instanceof Ship) {
 				Ship ship = (Ship) actionable;
 
-				if (!pilots.containsKey(ship.getId())){
-					pilots.put(ship.getId(), new PilotState(space, Genetic.getInstance().getNextCandidate()));
+				//System.out.println(space.getCurrentTimestep());
+
+				//handle fitness evaluations 
+				if (space.getCurrentTimestep() % evalTime == 0){
+					System.out.println("Evaluating genome @:" + space.getCurrentTimestep());
+
+					if (currentGenome == null){		//first initialization
+						currentGenome = Genetic.getInstance().getNextCandidate();
+						pilots.put(ship.getId(), new PilotState(space, currentGenome));
+						System.out.println("Init genome");
+					}
+					else if (space.getCurrentTimestep() != 0) {
+						double fitness= 0;
+
+						for(ImmutableTeamInfo info : space.getTeamInfo()){
+							if(info.getLadderName().equals("Adam Cat Rocket")){
+								fitness = info.getScore() - this.totalScore; //difference in score is genome's fitness
+								this.totalScore = info.getScore();
+							}
+						}
+						System.out.println("Evaluation finished with fitness: "+ fitness);
+						currentGenome.setFitness((float)fitness);		//genome uses float for fitness...
+
+						currentGenome = Genetic.getInstance().getNextCandidate();
+						pilots.put(ship.getId(), new PilotState(space, currentGenome));
+					}
 				}
 
-				AbstractAction action = new DoNothingAction();
+				AbstractAction action;
 				action = pilots.get(ship.getId()).executePlan(space, ship);
+
+				if (action == null) action = new DoNothingAction();
 				actions.put(ship.getId(), action);
 				
 			} else {
@@ -73,7 +106,6 @@ public class CatAdamAgent extends TeamClient {
 		//System.out.println("There are " + pilots.size() + " ships");
 		return actions;
 	}
-
 
 	@Override
 	public void getMovementEnd(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects) {
