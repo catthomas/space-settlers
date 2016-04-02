@@ -132,64 +132,37 @@ public class CatAdamAgent extends TeamClient {
 			Set<AbstractActionableObject> actionableObjects, 
 			ResourcePile resourcesAvailable, 
 			PurchaseCosts purchaseCosts) {
-//		HashMap<UUID, PurchaseTypes> purchases = new HashMap<UUID, PurchaseTypes>();
-//		PurchaseTypes purchase=null;
-//
-//		for (AbstractActionableObject actionableObject : actionableObjects) {
-//			if (actionableObject instanceof Ship) {
-//				Ship ship = (Ship) actionableObject;
-//
-//				purchase = pilots.get(ship.getId()).shop(space, ship, resourcesAvailable, purchaseCosts);	//ship gets a single purchase
-//				
-//
-//
-//				if (purchase != null) {
-//					purchases.put(ship.getId(), purchase);
-//				}
-//			}		
-//		}
-		
-		
 		HashMap<UUID, PurchaseTypes> purchases = new HashMap<UUID, PurchaseTypes>();
-		double BASE_BUYING_DISTANCE = 200;
-		boolean bought_ship = false;
-
+		PurchaseTypes purchase=null;
+		
 		// can I buy a ship?
 		if (purchaseCosts.canAfford(PurchaseTypes.SHIP, resourcesAvailable)) {
 			for (AbstractActionableObject actionableObject : actionableObjects) {
 				if (actionableObject instanceof Base) {
 					Base base = (Base) actionableObject;
 					purchases.put(base.getId(), PurchaseTypes.SHIP);
-					bought_ship = true;
+					purchase = PurchaseTypes.SHIP;
 					break;
 				}
 
 			}
 
 		}
-		if (purchaseCosts.canAfford(PurchaseTypes.BASE, resourcesAvailable) && bought_ship == false) {
+
+		if(purchase == null){
 			for (AbstractActionableObject actionableObject : actionableObjects) {
 				if (actionableObject instanceof Ship) {
 					Ship ship = (Ship) actionableObject;
-					Set<Base> bases = space.getBases();
-
-					// how far away is this ship to a base of my team?
-					boolean buyBase = true;
-					for (Base base : bases) {
-						if (base.getTeamName().equalsIgnoreCase(getTeamName())) {
-							double distance = space.findShortestDistance(ship.getPosition(), base.getPosition());
-							if (distance < BASE_BUYING_DISTANCE) {
-								buyBase = false;
-							}
-						}
-					}
-					if (buyBase) {
-						purchases.put(ship.getId(), PurchaseTypes.BASE);
+	
+					purchase = pilots.get(ship.getId()).shop(space, ship, resourcesAvailable, purchaseCosts);	//ship gets a single purchase
+					
+					if (purchase != null) {
+						purchases.put(ship.getId(), purchase);
 						break;
 					}
-				}
-			}		
-		} 
+				}		
+			}
+		}
 
 		return purchases;
 	}

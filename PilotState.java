@@ -6,6 +6,7 @@ import spacesettlers.actions.*;
 import spacesettlers.graphics.LineGraphics;
 import spacesettlers.graphics.SpacewarGraphics;
 import spacesettlers.objects.*;
+import spacesettlers.objects.resources.ResourcePile;
 import spacesettlers.objects.weapons.Missile;
 import spacesettlers.simulator.Toroidal2DPhysics;
 import spacesettlers.utilities.*;
@@ -25,6 +26,7 @@ public class PilotState {
 	private int MIN_BASE_FUEL = 1000;	//Minimum base fuel to be considered a candidate for refueling
 	private int EXE_TIME = 30;			//max time between planning
 	private int CLOSE_ESC = 125;			//object is considered particularly close
+	private int TRAJ_ANGLE = 50;			//when determining best prospect, prioritize objects within this angle
 
 	private Ship vessel;
 	
@@ -460,7 +462,7 @@ public class PilotState {
 
 
 		//System.out.println("~~~~~MOVING TO PROSPECT~~~~~");
-		goal = getProspectWithinFOVAndTrajectory(space, vessel, 40); //favor within certain angle
+		goal = getProspectWithinFOVAndTrajectory(space, vessel, TRAJ_ANGLE); //favor within certain angle
 		if(goal == null){
 			goal = findNearestProspect(space, vessel);
 		}
@@ -489,7 +491,10 @@ public class PilotState {
 			}
 		} else {	//just get resources
 			//System.out.println("~~~~~Planning TO PROSPECT~~~~~");
-			temp = findNearestProspect(space, vessel);
+			temp = getProspectWithinFOVAndTrajectory(space, vessel, TRAJ_ANGLE); //favor within certain angle
+			if(temp == null){
+				temp = findNearestProspect(space, vessel);
+			}
 			if(temp != null){
 				goal = this.nodes.get(temp.getId());
 			}
