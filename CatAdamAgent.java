@@ -1,8 +1,12 @@
 package stan5674;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -40,9 +44,9 @@ public class CatAdamAgent extends TeamClient {
 	WeakHashMap<UUID, PilotState> pilots = new WeakHashMap<UUID, PilotState>();
 	//PilotState pilot = new PilotState();
 	/**
-	 * Example knowledge used to show how to load in/save out to files for learning
+	 * Knowledge used for learning.
 	 */
-	ExampleKnowledge myKnowledge;
+	Genetic evoKnowledge;
 	
 	public Map<UUID, AbstractAction> getMovementStart(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects) {
 	
@@ -55,7 +59,7 @@ public class CatAdamAgent extends TeamClient {
 				Ship ship = (Ship) actionable;
 
 				if (!pilots.containsKey(ship.getId())){
-					pilots.put(ship.getId(), new PilotState(space));
+					pilots.put(ship.getId(), new PilotState(space, evoKnowledge.getNextCandidate()));
 				}
 
 				AbstractAction action = new DoNothingAction();
@@ -82,7 +86,7 @@ public class CatAdamAgent extends TeamClient {
 
 
 				if (!pilots.containsKey(ship.getId())){
-					pilots.put(ship.getId(), new PilotState(space));
+					pilots.put(ship.getId(), new PilotState(space, evoKnowledge.getNextCandidate()));
 				} else {
 					pilots.get(ship.getId()).assessPlan(space, ship);
 				}
@@ -97,7 +101,27 @@ public class CatAdamAgent extends TeamClient {
 	 */
 	@Override
 	public void initialize(Toroidal2DPhysics space) {
-		//pilot.setFOV(space);
+		File f = new File("knowledge.ser");
+		if(f.exists()) { //learning has occurred previously, set up on past knowledge
+			System.out.println("LEARNING HAS OCCURED BEFORE! :)");
+			try {
+				FileInputStream fis;
+				ObjectInputStream ois;
+				fis = new FileInputStream(f);
+				ois = new ObjectInputStream(fis);
+				this.evoKnowledge = (Genetic) ois.readObject();
+				ois.close();
+				fis.close();
+			} catch (Exception e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+				//error occurred, start from new knowledge..
+				this.evoKnowledge = new Genetic();
+			}
+		} else { //learning has not occurred before
+			System.out.println("LEARNING HAS NOT OCCURED BEFORE! :(");
+			this.evoKnowledge = new Genetic();
+		}
 	}
 
 	/**
@@ -107,20 +131,24 @@ public class CatAdamAgent extends TeamClient {
 	 */
 	@Override
 	public void shutDown(Toroidal2DPhysics space) {
-//		XStream xstream = new XStream();
-//		xstream.alias("ExampleKnowledge", ExampleKnowledge.class);
-//
-//		try { 
-//			// if you want to compress the file, change FileOuputStream to a GZIPOutputStream
-//			xstream.toXML(myKnowledge, new FileOutputStream(new File(getKnowledgeFile())));
-//		} catch (XStreamException e) {
-//			// if you get an error, handle it somehow as it means your knowledge didn't save
-//			// the error will happen the first time you run
-//			myKnowledge = new ExampleKnowledge();
-//		} catch (FileNotFoundException e) {
-//			// TODO Auto-generated catch block
-//			myKnowledge = new ExampleKnowledge();
-//		}
+	      try {
+	          // create a new file with an ObjectOutputStream
+	          FileOutputStream out = new FileOutputStream("knowledge.ser");
+	          ObjectOutputStream oout = new ObjectOutputStream(out);
+
+	          //Run evolution
+	          evoKnowledge.evolve();
+	          
+	          //Write knowledge to the file
+	          oout.writeObject(evoKnowledge);
+	          oout.flush();
+
+	          //Close write streams
+	          oout.close();
+	          out.close();
+	       } catch (Exception ex) {
+	          ex.printStackTrace();
+	       }
 	}
 
 	@Override
