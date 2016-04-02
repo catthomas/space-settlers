@@ -11,7 +11,6 @@ public class Genetic implements Serializable{
 	/*
 		Genetic class handles generational evolution stuff on Genomes
 	*/
-
 	float MUT_RATE = .3f;
 	float MUT_VAR = .1f;
 	int TOURN_SIZE = 5;			//Expected number of greatest fit = (1 - ((popSize-1)/popSize)^tournSize))*popSize (5 tourn ~ 5/100)
@@ -23,6 +22,11 @@ public class Genetic implements Serializable{
 	int generation;
 
 	Random rand = new Random();
+	
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -4070454895004720955L;
 
 	public Genetic(){
 		this.lastPop = null;
