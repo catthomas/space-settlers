@@ -56,7 +56,7 @@ public class CatAdamAgent extends TeamClient {
 
 		// loop through each ship
 		for (AbstractObject actionable :  actionableObjects) {
-			System.out.println(Genetic.getInstance().getBest());
+			//System.out.println(Genetic.getInstance().getBest());
 			if (actionable instanceof Ship) {
 				Ship ship = (Ship) actionable;
 				 
@@ -145,7 +145,9 @@ public class CatAdamAgent extends TeamClient {
 	@Override
 	public void initialize(Toroidal2DPhysics space) {
 		//Do nothing~ covered in Genetic class
-		System.out.println("Best of knowledge: " + Genetic.getInstance().getBest());
+		if(Genetic.getInstance().getBest() != null){
+			System.out.println("Best of knowledge: " + Genetic.getInstance().getBest().fitness);
+		}
 	}
 
 	/**
