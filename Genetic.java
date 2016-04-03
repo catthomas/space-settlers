@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
-import java.lang.Math;
 import java.util.*;
 
 import stan5674.Genome;
@@ -21,6 +20,8 @@ public class Genetic implements Serializable{
 
 	ArrayList<Genome> lastPop;
 	ArrayList<Genome> pop;
+	ArrayList<Float> avgFitOverGen; //Track learning statistics
+	int testedCount;
 	int nextCand;
 	int generation;
 
@@ -59,6 +60,8 @@ public class Genetic implements Serializable{
 				//error occurred, start from new knowledge..?
 				this.lastPop = null;
 				this.pop = new ArrayList<Genome>();
+				this.avgFitOverGen = new ArrayList<Float>();
+				this.testedCount = 0;
 				this.nextCand = 0;
 				this.generation = 0;
 			}
@@ -66,6 +69,8 @@ public class Genetic implements Serializable{
 			System.out.println("LEARNING HAS NOT OCCURRED BEFORE! :(");
 			this.lastPop = null;
 			this.pop = new ArrayList<Genome>();
+			this.avgFitOverGen = new ArrayList<Float>();
+			this.testedCount = 0;
 			this.nextCand = 0;
 			this.generation = 0;
 		}
@@ -122,6 +127,10 @@ public class Genetic implements Serializable{
 	}
 
 	public void evolve(){
+		//Track fitness of current population and add to arraylist
+		this.avgFitOverGen.add(this.trackFitness());
+		this.testedCount = 0; //restart counter
+		
 		//perform selection and mutation for next generation
 		ArrayList<Genome> selection = new ArrayList<Genome>();
 		ArrayList<Genome> nextGen = new ArrayList<Genome>();
@@ -161,6 +170,17 @@ public class Genetic implements Serializable{
 		this.nextCand = 0;
 		this.generation++;
 	}
+	
+	public Float trackFitness(){
+		float sumFit = 0;
+		for(Genome gen : this.pop){
+			System.out.println("fitness: " + gen.getFitness());
+			sumFit += gen.getFitness();
+		}
+		//Find average fitness for population
+		sumFit /= pop.size();
+		return sumFit;
+	}
 
 	public float normal(){
 		return (float)rand.nextGaussian()*this.MUT_VAR;
@@ -173,6 +193,7 @@ public class Genetic implements Serializable{
 
 		Genome cand = this.pop.get(this.nextCand);
 		this.nextCand++;
+		this.testedCount++;
 
 		return cand;
 	}

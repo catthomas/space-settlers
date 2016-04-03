@@ -44,6 +44,7 @@ public class CatAdamAgent extends TeamClient {
 	int evalTime = 5000;			//time steps to evaluate a genome
 	Genome currentGenome = null;	//the currently evaluated Genome
 	double totalScore = 0;			//used to calculate fitnesses
+	int popSizeToEvolve = 40; 		//evolve once this amount of genomes sampled
 
 	
 	public Map<UUID, AbstractAction> getMovementStart(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects) {
@@ -59,7 +60,7 @@ public class CatAdamAgent extends TeamClient {
 				//System.out.println(space.getCurrentTimestep());
 
 				//handle fitness evaluations 
-				if (space.getCurrentTimestep() % evalTime == 0 && ship != null){
+				if (space.getCurrentTimestep() % evalTime == 0 && (ship != null || pilots != null)){ //avoid null pointer at game start
 					System.out.println("Evaluating genome @:" + space.getCurrentTimestep());
 
 					if (currentGenome == null){		//first initialization
@@ -76,7 +77,7 @@ public class CatAdamAgent extends TeamClient {
 								this.totalScore = info.getScore();
 							}
 						}
-						System.out.println("Evaluation finished with fitness: "+ fitness);
+						System.out.println("Evaluation finished for " + this.getTeamName()+ " with fitness: "+ fitness);
 						currentGenome.setFitness((float)fitness);		//genome uses float for fitness...
 
 						currentGenome = Genetic.getInstance().getNextCandidate();
@@ -135,21 +136,19 @@ public class CatAdamAgent extends TeamClient {
 	 */
 	@Override
 	public void shutDown(Toroidal2DPhysics space) {
-  	  System.out.println("SHUTTING DOWN");
-		if(generation < Genetic.getInstance().generation){
-			//Evolve has already been run this game, return
-			System.out.println("Already evolved and saved!");
-			return;
-		}
-		
+		System.out.println("SHUTTING DOWN");
 	      try {
 	          // find file
 	          FileOutputStream out = new FileOutputStream("stan5674/"+Genetic.getInstance().fileName);
 	          ObjectOutputStream oout = new ObjectOutputStream(out);
 	          
 	          //Evolve knowledge base if appropriate pop size
-	          if(Genetic.getInstance().pop.size() >= 40){
+	          if(Genetic.getInstance().testedCount >= popSizeToEvolve){
 	        	  Genetic.getInstance().evolve();
+	        	  //Print fitness to file
+	        	  PrintWriter print = new PrintWriter(new FileOutputStream(new File("stan5674/"+outputFile), true));
+	  	  		  print.append(""+Genetic.getInstance().generation+","+ Genetic.getInstance().trackFitness() +"\n"); //write generation number, score
+	  	  		  print.close();
 	          }
 	          
 	          //Write knowledge to the file
@@ -158,21 +157,7 @@ public class CatAdamAgent extends TeamClient {
 
 	          //Close object write stream
 	          oout.close();
-	          out.close();
-	          
-	         //Write to learning tracking file
-	        double score = 0;
-	        int teamCount = 0;
-	  		for(ImmutableTeamInfo info : space.getTeamInfo()){
-				if(info.getLadderName().equals("Adam Cat Rocket")){ //include score of all agents
-					score += info.getScore();
-					++teamCount;
-				}
-			}
-	  		PrintWriter print = new PrintWriter(new FileOutputStream(new File("stan5674/"+outputFile), true));
-	  		print.append(""+Genetic.getInstance().generation+","+ score+","+teamCount+"\n"); //write generation number, score, # of teams running
-	        print.close();  
-	          
+	          out.close();  
 	       } catch (Exception ex) {
 	          ex.printStackTrace();
 	       }
