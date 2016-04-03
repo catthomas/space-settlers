@@ -134,7 +134,9 @@ public class Genetic implements Serializable{
 	public void evolve(){
 		//Track fitness of current population and add to arraylist
 		this.testedCount = 0; //restart counter
-		if(this.best.fitness < findBest().fitness){
+		if(this.best == null){
+			this.best = findBest();
+		} else if(this.best.fitness < findBest().fitness){
 			this.best = findBest(); //update best to current!
 		}
 		
