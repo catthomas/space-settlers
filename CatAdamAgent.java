@@ -63,7 +63,11 @@ public class CatAdamAgent extends TeamClient {
 				if(runLearning == false){
 					//Learning is not actively happening, but still load pilots from knowledge file and genomes
 					if (!pilots.containsKey(ship.getId())){
-						pilots.put(ship.getId(), new PilotState(space, Genetic.getInstance().getNextCandidate()));
+						if(Genetic.getInstance().getBest() != null){ //based on previous knowledge - use best!
+							pilots.put(ship.getId(), new PilotState(space, Genetic.getInstance().getBest()));
+						} else { //no knowledge wha wha
+							pilots.put(ship.getId(), new PilotState(space, Genetic.getInstance().getNextCandidate()));
+						}
 					}
 				} else if (space.getCurrentTimestep() % evalTime == 0){ //handle fitness evaluations
 					//System.out.println("Evaluating genome @:" + space.getCurrentTimestep());
@@ -116,15 +120,21 @@ public class CatAdamAgent extends TeamClient {
 			//System.out.println(actionable);
 			if (actionable instanceof Ship) {
 				Ship ship = (Ship) actionable;
-
-
-				if (!pilots.containsKey(ship.getId())){
+				
+				if(runLearning == false){
+					//Learning is not actively happening, but still load pilots from knowledge file and genomes
+					if (!pilots.containsKey(ship.getId())){
+						if(Genetic.getInstance().getBest() != null){ //based on previous knowledge - use best!
+							pilots.put(ship.getId(), new PilotState(space, Genetic.getInstance().getBest()));
+						} else { //no knowledge wha wha
+							pilots.put(ship.getId(), new PilotState(space, Genetic.getInstance().getNextCandidate()));
+						}
+					}
+				} else if (!pilots.containsKey(ship.getId())){
 					pilots.put(ship.getId(), new PilotState(space, Genetic.getInstance().getNextCandidate()));
 				} else {
 					pilots.get(ship.getId()).assessPlan(space, ship);
 				}
-				//actions.put(ship.getId(), action);
-				
 			}
 		} 
 	}
