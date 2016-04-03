@@ -59,11 +59,13 @@ public class CatAdamAgent extends TeamClient {
 			//System.out.println(actionable);
 			if (actionable instanceof Ship) {
 				Ship ship = (Ship) actionable;
-
-				//System.out.println(space.getCurrentTimestep());
-
-				//handle fitness evaluations 
-				if (useLearning == true && space.getCurrentTimestep() % evalTime == 0){
+				 
+				if(runLearning == false){
+					//Learning is not actively happening, but still load pilots from knowledge file and genomes
+					if (!pilots.containsKey(ship.getId())){
+						pilots.put(ship.getId(), new PilotState(space, Genetic.getInstance().getNextCandidate()));
+					}
+				} else if (space.getCurrentTimestep() % evalTime == 0){ //handle fitness evaluations
 					//System.out.println("Evaluating genome @:" + space.getCurrentTimestep());
 
 					if (currentGenome == null){		//first initialization
@@ -141,7 +143,7 @@ public class CatAdamAgent extends TeamClient {
 	@Override
 	public void shutDown(Toroidal2DPhysics space) {
 		//System.out.println("SHUTTING DOWN");
-		if(useLearning == true){
+		if(runLearning == true){ //don't write out knowledge if not learning
 	      try {
 	          // find file
 	          FileOutputStream out = new FileOutputStream("stan5674/"+Genetic.getInstance().fileName);
