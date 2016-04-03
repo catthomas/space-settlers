@@ -25,6 +25,7 @@ public class PilotState {
 	private float FOV = 1000;			//Max distance to consider objects
 	private int MIN_BASE_FUEL = 1000;	//Minimum base fuel to be considered a candidate for refueling
 	private int EXE_TIME = 30;			//max time between planning
+	private int SURVEY_TIME = 100;		//survey space for good real estate after this many time steps
 	private int CLOSE_ESC = 125;			//object is considered particularly close
 	private int TRAJ_ANGLE = 50;			//when determining best prospect, prioritize objects within this angle
 
@@ -43,6 +44,8 @@ public class PilotState {
 	
 	//return the current graphics
 	public Set<SpacewarGraphics> getPathGraphics(){
+		this.graphics.add(new CircleGraphics(6, new Color(218,165,32), primeRealEstate));
+
 		return graphics;
 	}
 
@@ -269,6 +272,10 @@ public class PilotState {
 			for(Node neighbor : neighbors){		
 				if(!closedList.contains(neighbor.getObject().getId())){
 					double h = findH(space, neighbor, goal);
+					if (h == Double.POSITIVE_INFINITY){		//abort this node--it's bad ju-ju
+						closedList.add(neighbor.getObject().getId());
+						continue;
+					}
 					double g = findG(space, current, neighbor);
 					double f = neighbor.getF();		//store initial f
 
@@ -303,7 +310,7 @@ public class PilotState {
 	public void setPath(Toroidal2DPhysics state, WeakHashMap<UUID, UUID> previousNode, Node start, Node goal){
 		//System.out.println("~~~~~~~SET PATH STARTED~~~~~~~~~~~~~");
 		this.path.clear();
-		//this.graphics.clear();
+		this.graphics.clear();
 		
 		Node current = goal; //Start from end, assume goal was found
 		Position prevPos;
@@ -316,6 +323,7 @@ public class PilotState {
 			//add a line between this node and last
 			graphics.add(new LineGraphics(current.getObject().getPosition(), prevPos, 
 			state.findShortestDistanceVector(current.getObject().getPosition(), prevPos))); 
+
 		}
 		//System.out.println("~~~~~~~SET PATH ENDED~~~~~~~~~~~~~");
 		this.exe = 0;
@@ -342,7 +350,7 @@ public class PilotState {
 		AbstractObject nodeObject = start.getObject();
 		if (nodeObject instanceof Asteroid){	
 
-			if(!((Asteroid)nodeObject).isMineable()){	//don't visit unmineable asteroids	
+			if(!(((Asteroid)nodeObject).isMineable())){	//don't visit unmineable asteroids	
 				return Double.POSITIVE_INFINITY;
 			} else if (goal.getObject() instanceof Base || goal.getObject() instanceof Beacon){		//and don't stop at asteroids if headed for fuel
 				return Double.POSITIVE_INFINITY;
@@ -359,7 +367,7 @@ public class PilotState {
 		} else if (nodeObject instanceof Ship || nodeObject instanceof Missile){
 			return Double.POSITIVE_INFINITY;	//or their ships & bullets
 		} else if (nodeObject instanceof Beacon && !start.isBypass){	//make it favorable to visit fuel beacons
-			return space.findShortestDistance(nodeObject.getPosition(), goal.getObject().getPosition())*.9;
+			return space.findShortestDistance(nodeObject.getPosition(), goal.getObject().getPosition())*.75;
 		}
 	//System.out.println("~~~~~~~Getting H for: "+ nodeObject.getPosition() + " to: " + goal.getObject().getPosition() + "~~~~~~~~~~");
 		return space.findShortestDistance(nodeObject.getPosition(), goal.getObject().getPosition());
@@ -499,7 +507,6 @@ public class PilotState {
 
 	public void prePlan(Toroidal2DPhysics space, Ship vessel){
 		this.genGraph(space, vessel);
-		this.primeRealEstate = this.findGoldmine(space, vessel);
 	
 		Node start = this.nodes.get(vessel.getId());
 		AbstractObject temp = null;
@@ -519,7 +526,7 @@ public class PilotState {
 			}
 		} else {	//just get resources
 			System.out.println("~~~~~Planning TO PROSPECT~~~~~");
-			temp = getProspectWithinFOVAndTrajectory(space, vessel, TRAJ_ANGLE); //favor within certain angle
+			//temp = getProspectWithinFOVAndTrajectory(space, vessel, TRAJ_ANGLE); //favor within certain angle
 			if(temp == null){
 				temp = findNearestProspect(space, vessel);
 			}
@@ -568,7 +575,7 @@ public class PilotState {
 	public void assessPlan(Toroidal2DPhysics space, Ship vessel){
 		if(this.usePlanning == false) return;
 		if (!this.path.empty())
-			if (1.5*vessel.getRadius() >= space.findShortestDistance(vessel.getPosition(), this.path.peek().getObject().getPosition())){
+			if (!this.path.peek().getObject().isAlive() || 2*vessel.getRadius() >= space.findShortestDistance(vessel.getPosition(), this.path.peek().getObject().getPosition())){
 				this.path.pop();			//subgoal achieved
 				//System.out.println("~~~~~~Popping node~~~~~~~");
 			}
@@ -757,11 +764,11 @@ public class PilotState {
 
 		//System.out.println("cluster iterations: " + iter);
 
-		this.graphics.clear();
+		// this.graphics.clear();
 
-		for (Position c : K){
-			this.graphics.add(new CircleGraphics(2, Color.RED, c));
-		}
+		// for (Position c : K){
+		// 	this.graphics.add(new CircleGraphics(2, Color.RED, c));
+		// }
 
 		//return centroid of cluster with highest resources
 		double total;
@@ -790,6 +797,12 @@ public class PilotState {
 	//pilot decides what to buy from shop
 	public PurchaseTypes shop(Toroidal2DPhysics space, Ship vessel, ResourcePile funds, PurchaseCosts prices){
 		Position currentPosition = vessel.getPosition();
+
+		if (space.getCurrentTimestep() % this.SURVEY_TIME == 0){		//reservey land
+			this.primeRealEstate = this.findGoldmine(space, vessel);
+		}
+
+		//buy a ship whenever possible!
 		if (prices.canAfford(PurchaseTypes.SHIP, funds)){
 			//System.out.println("-----------------BUY A SHIP");
 			return PurchaseTypes.SHIP;
@@ -803,10 +816,14 @@ public class PilotState {
 					}
 				}
 			}
-			//this.primeRealEstate;
 
-			//if ()
-			return  PurchaseTypes.BASE;
+
+			//purchase a base if on prime real estate, or if ship is trying to reach a base anyways
+			if (space.findShortestDistance(currentPosition, this.primeRealEstate) < 100 || 
+				this.goal.getObject() instanceof Base){
+
+				return  PurchaseTypes.BASE;
+			}
 		}
 
 		return null;
