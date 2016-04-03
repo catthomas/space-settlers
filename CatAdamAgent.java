@@ -61,12 +61,12 @@ public class CatAdamAgent extends TeamClient {
 
 				//handle fitness evaluations 
 				if (space.getCurrentTimestep() % evalTime == 0 && (ship != null || pilots != null)){ //avoid null pointer at game start
-					System.out.println("Evaluating genome @:" + space.getCurrentTimestep());
+					//System.out.println("Evaluating genome @:" + space.getCurrentTimestep());
 
 					if (currentGenome == null){		//first initialization
 						currentGenome = Genetic.getInstance().getNextCandidate();
 						pilots.put(ship.getId(), new PilotState(space, currentGenome));
-						System.out.println("Init genome");
+						//System.out.println("Init genome");
 					}
 					else if (space.getCurrentTimestep() != 0) {
 						double fitness= 0;
@@ -77,11 +77,15 @@ public class CatAdamAgent extends TeamClient {
 								this.totalScore = info.getScore();
 							}
 						}
-						System.out.println("Evaluation finished for " + this.getTeamName()+ " with fitness: "+ fitness);
+						//System.out.println("Evaluation finished for " + this.getTeamName()+ " with fitness: "+ fitness);
 						currentGenome.setFitness((float)fitness);		//genome uses float for fitness...
+						this.testForEvolve(); //See if time to evolve, evolve if ready
 
-						currentGenome = Genetic.getInstance().getNextCandidate();
-						pilots.put(ship.getId(), new PilotState(space, currentGenome));
+
+						if(space.getCurrentTimestep() < 20000){ // dont add genomes at game end
+							currentGenome = Genetic.getInstance().getNextCandidate();
+							pilots.put(ship.getId(), new PilotState(space, currentGenome));
+						}		
 					}
 				}
 
@@ -136,20 +140,11 @@ public class CatAdamAgent extends TeamClient {
 	 */
 	@Override
 	public void shutDown(Toroidal2DPhysics space) {
-		System.out.println("SHUTTING DOWN");
+		//System.out.println("SHUTTING DOWN");
 	      try {
 	          // find file
 	          FileOutputStream out = new FileOutputStream("stan5674/"+Genetic.getInstance().fileName);
 	          ObjectOutputStream oout = new ObjectOutputStream(out);
-	          
-	          //Evolve knowledge base if appropriate pop size
-	          if(Genetic.getInstance().testedCount >= popSizeToEvolve){
-	        	  Genetic.getInstance().evolve();
-	        	  //Print fitness to file
-	        	  PrintWriter print = new PrintWriter(new FileOutputStream(new File("stan5674/"+outputFile), true));
-	  	  		  print.append(""+Genetic.getInstance().generation+","+ Genetic.getInstance().trackFitness() +"\n"); //write generation number, score
-	  	  		  print.close();
-	          }
 	          
 	          //Write knowledge to the file
 	          oout.writeObject(Genetic.getInstance());
@@ -161,6 +156,23 @@ public class CatAdamAgent extends TeamClient {
 	       } catch (Exception ex) {
 	          ex.printStackTrace();
 	       }
+	}
+
+	public void testForEvolve(){
+		try{	          //Evolve knowledge base if appropriate pop size
+	          if(Genetic.getInstance().testedCount >= popSizeToEvolve){
+	          	//set tested count here, just in case
+	          	Genetic.getInstance().testedCount = 0;
+	          //Print fitness to file
+	        	  PrintWriter print = new PrintWriter(new FileOutputStream(new File("stan5674/"+outputFile), true));
+	  	  		  print.append(""+Genetic.getInstance().generation+","+ Genetic.getInstance().trackFitness() +"\n"); //write generation number, score
+	  	  		  print.close();
+	        	  Genetic.getInstance().evolve(); //evolve
+	        	  System.out.println("~~~~~~~~~~~~~~EVOLVED~~~~~~~~~~~~~~~");
+	          }
+	        } catch (Exception ex) {
+	        	ex.printStackTrace();
+	        }
 	}
 
 	@Override

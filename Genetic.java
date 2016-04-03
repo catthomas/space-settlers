@@ -20,7 +20,7 @@ public class Genetic implements Serializable{
 
 	ArrayList<Genome> lastPop;
 	ArrayList<Genome> pop;
-	ArrayList<Float> avgFitOverGen; //Track learning statistics
+	//ArrayList<Float> avgFitOverGen; //Track learning statistics
 	int testedCount;
 	int nextCand;
 	int generation;
@@ -52,6 +52,8 @@ public class Genetic implements Serializable{
 				this.pop = knowledge.pop;
 				this.nextCand = knowledge.nextCand;
 				this.generation = knowledge.generation;
+				//this.avgFitOverGen = knowledge.avgFitOverGen;
+				this.testedCount = knowledge.testedCount;
 				ois.close();
 				fis.close();
 			} catch (Exception e1) {
@@ -60,7 +62,7 @@ public class Genetic implements Serializable{
 				//error occurred, start from new knowledge..?
 				this.lastPop = null;
 				this.pop = new ArrayList<Genome>();
-				this.avgFitOverGen = new ArrayList<Float>();
+				//this.avgFitOverGen = new ArrayList<Float>();
 				this.testedCount = 0;
 				this.nextCand = 0;
 				this.generation = 0;
@@ -69,7 +71,7 @@ public class Genetic implements Serializable{
 			System.out.println("LEARNING HAS NOT OCCURRED BEFORE! :(");
 			this.lastPop = null;
 			this.pop = new ArrayList<Genome>();
-			this.avgFitOverGen = new ArrayList<Float>();
+			//this.avgFitOverGen = new ArrayList<Float>();
 			this.testedCount = 0;
 			this.nextCand = 0;
 			this.generation = 0;
@@ -128,8 +130,8 @@ public class Genetic implements Serializable{
 
 	public void evolve(){
 		//Track fitness of current population and add to arraylist
-		this.avgFitOverGen.add(this.trackFitness());
 		this.testedCount = 0; //restart counter
+		//this.avgFitOverGen.add(this.trackFitness());
 		
 		//perform selection and mutation for next generation
 		ArrayList<Genome> selection = new ArrayList<Genome>();
@@ -174,7 +176,7 @@ public class Genetic implements Serializable{
 	public Float trackFitness(){
 		float sumFit = 0;
 		for(Genome gen : this.pop){
-			System.out.println("fitness: " + gen.getFitness());
+			//System.out.println("fitness: " + gen.getFitness());
 			sumFit += gen.getFitness();
 		}
 		//Find average fitness for population
