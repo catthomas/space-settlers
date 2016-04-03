@@ -38,6 +38,7 @@ public class PilotState {
 	private Stack<Node> path = new Stack<Node>(); //The path the vessel is following
 	private Set<SpacewarGraphics> graphics = new HashSet<SpacewarGraphics>(); //Holds markers for A* path
 	private int exe = this.EXE_TIME; 				//time spent executing current plan
+	private Position primeRealEstate;				//moost dense resource location
 
 	
 	//return the current graphics
@@ -160,9 +161,9 @@ public class PilotState {
 				if (space.isPathClearOfObstructions(a.getPosition(), b.getPosition(), obs, vessel.getRadius()*2)){
 					children.add(this.nodes.get(b.getId()));
 				}	else {
-//					Node bypass = this.generateBypassNode(space, a, obs, b);
-//					if (bypass != null)
-//						children.add(bypass);	//generates a node beside obstruction
+					Node bypass = this.generateBypassNode(space, a, obs, b);
+					if (bypass != null)
+						children.add(bypass);	//generates a node beside obstruction
 					//children.add(this.nodes.get(b.getId()));
 					
 				}
@@ -242,7 +243,7 @@ public class PilotState {
 		start.setG(0);
 		start.setH(findH(space, start, goal)); 
 		openList.add(start); //begin with start node
-		System.out.println("~~~~~~~A STAR STARTED~~~~~~~~~~~~~");
+		//System.out.println("~~~~~~~A STAR STARTED~~~~~~~~~~~~~");
 		//Plan path
 		while(!openList.isEmpty()){
 			//Set current node
@@ -269,15 +270,22 @@ public class PilotState {
 				if(!closedList.contains(neighbor.getObject().getId())){
 					double h = findH(space, neighbor, goal);
 					double g = findG(space, current, neighbor);
-					
-					if(h < neighbor.getH()){
+					double f = neighbor.getF();		//store initial f
+
+					if(h < neighbor.getH()){		//update heuristic value
 						neighbor.setH(h);
-						previousNode.put(neighbor.getObject().getId(), current.getObject().getId());
 					}
-					if(g < neighbor.getG()){
+
+					if(g < neighbor.getG()){		//update pathcost
 						neighbor.setG(g);
+					}
+
+					if (neighbor.getF() < f){		//check if f has been reduced
+						previousNode.put(neighbor.getObject().getId(), current.getObject().getId());
+					} else if (!previousNode.containsKey(neighbor.getObject().getId())){		//new node found from current
 						previousNode.put(neighbor.getObject().getId(), current.getObject().getId());
 					}
+
 					openList.add(neighbor); 
 				}
 			}
@@ -307,7 +315,7 @@ public class PilotState {
 			current = nodes.get(previousNode.get(current.getObject().getId())); //switch to next node
 			//add a line between this node and last
 			graphics.add(new LineGraphics(current.getObject().getPosition(), prevPos, 
-					state.findShortestDistanceVector(current.getObject().getPosition(), prevPos))); 
+			state.findShortestDistanceVector(current.getObject().getPosition(), prevPos))); 
 		}
 		//System.out.println("~~~~~~~SET PATH ENDED~~~~~~~~~~~~~");
 		this.exe = 0;
@@ -320,7 +328,7 @@ public class PilotState {
 		Node best = null;		//pick one
 		
 		for(Node node : nodes){
-		if(best == null || node.getF() < best.getF()){
+			if(best == null || node.getF() < best.getF()){
 				best = node;
 			}
 		}
@@ -332,16 +340,26 @@ public class PilotState {
 	 */
 	public double findH(Toroidal2DPhysics space, Node start, Node goal){
 		AbstractObject nodeObject = start.getObject();
-		if (nodeObject instanceof Asteroid && !((Asteroid)nodeObject).isMineable()){	//don't visit unmineable asteroids
-			return Double.MAX_VALUE;
-		} else if (nodeObject instanceof Base){
-			if (!(((Base)nodeObject).getTeam().getShips().contains(this.vessel))){
-				return Double.MAX_VALUE;	//don't run into other team's bases
-			} else if (!(goal.getObject() instanceof Base)){
-				return Double.MAX_VALUE; //don't run into our base if not a goal
+		if (nodeObject instanceof Asteroid){	
+
+			if(!((Asteroid)nodeObject).isMineable()){	//don't visit unmineable asteroids	
+				return Double.POSITIVE_INFINITY;
+			} else if (goal.getObject() instanceof Base || goal.getObject() instanceof Beacon){		//and don't stop at asteroids if headed for fuel
+				return Double.POSITIVE_INFINITY;
 			}
+			
+		} else if (nodeObject instanceof Base){
+
+			if (!(((Base)nodeObject).getTeam().getShips().contains(this.vessel))){
+				return Double.POSITIVE_INFINITY;				//don't run into other team's bases
+			} else if (!(goal.getObject() instanceof Base)){
+				return Double.POSITIVE_INFINITY;				//don't run into our base if not a goal
+			}
+
 		} else if (nodeObject instanceof Ship || nodeObject instanceof Missile){
-			return Double.MAX_VALUE;	//or their ships & bullets
+			return Double.POSITIVE_INFINITY;	//or their ships & bullets
+		} else if (nodeObject instanceof Beacon && !start.isBypass){	//make it favorable to visit fuel beacons
+			return space.findShortestDistance(nodeObject.getPosition(), goal.getObject().getPosition())*.9;
 		}
 	//System.out.println("~~~~~~~Getting H for: "+ nodeObject.getPosition() + " to: " + goal.getObject().getPosition() + "~~~~~~~~~~");
 		return space.findShortestDistance(nodeObject.getPosition(), goal.getObject().getPosition());
@@ -422,13 +440,22 @@ public class PilotState {
 		
 		if(nearestBeacon != null && nearestBase == null){
 			return nearestBeacon;
-		} else if (nearestBeacon != null && nearestBase != null && space.findShortestDistance(location, nearestBase.getPosition()) >= space.findShortestDistance(location, nearestBeacon.getPosition())){
-			//System.out.println("Shortest distance to base found: " + nearestBase.toString());
-			return nearestBeacon;
-		} else {
-			//System.out.println("Shortest distance to Beacon found: " + nearestBeacon.toString());
+
+		} else if (nearestBeacon == null && nearestBase != null){
 			return nearestBase;
+
+		} else if (nearestBeacon != null && nearestBase != null){
+			if (space.findShortestDistance(location, nearestBase.getPosition()) > space.findShortestDistance(location, nearestBeacon.getPosition())){
+			//System.out.println("Shortest distance to base found: " + nearestBase.toString());
+				return nearestBeacon;
+
+			} else {
+			//System.out.println("Shortest distance to Beacon found: " + nearestBeacon.toString());
+				return nearestBase;
+			}
 		}
+
+		return findNearestBase(space, vessel, false);		//failsafe, just go to the closest base even if insufficient fuel
 	}
 
 	//Pilot's instincts (failsafe actions)
@@ -472,7 +499,7 @@ public class PilotState {
 
 	public void prePlan(Toroidal2DPhysics space, Ship vessel){
 		this.genGraph(space, vessel);
-		this.findGoldmine(space, vessel);
+		this.primeRealEstate = this.findGoldmine(space, vessel);
 	
 		Node start = this.nodes.get(vessel.getId());
 		AbstractObject temp = null;
@@ -541,7 +568,7 @@ public class PilotState {
 	public void assessPlan(Toroidal2DPhysics space, Ship vessel){
 		if(this.usePlanning == false) return;
 		if (!this.path.empty())
-			if (2*vessel.getRadius() >= space.findShortestDistance(vessel.getPosition(), this.path.peek().getObject().getPosition())){
+			if (1.5*vessel.getRadius() >= space.findShortestDistance(vessel.getPosition(), this.path.peek().getObject().getPosition())){
 				this.path.pop();			//subgoal achieved
 				//System.out.println("~~~~~~Popping node~~~~~~~");
 			}
@@ -651,7 +678,7 @@ public class PilotState {
 	}
 
 	//uses K-means clustering to find a location with high resource density
-	public void findGoldmine(Toroidal2DPhysics space, Ship vessel){
+	public Position findGoldmine(Toroidal2DPhysics space, Ship vessel){
 		int k = 8;													//number of clusters
 		Random rand = new Random();
 		List<Asteroid> prospects = getMinableAsteroids(space);		//maybe only consider stationary asteroids?
@@ -676,7 +703,7 @@ public class PilotState {
 		int MAX_ITER = 100;
 		int iter = 0;
 
-		System.out.println("Clustering " + prospects.size() + " asteroids...");
+		//System.out.println("Clustering " + prospects.size() + " asteroids...");
 
 		while (changed && iter < MAX_ITER){
 			iter++;
@@ -717,7 +744,7 @@ public class PilotState {
 
 					dxy = dxy.divide(count);			//average displacement from centroid
 
-					System.out.println("Average displacement: " + dxy.getMagnitude() + " @ iter: " + iter);
+					//System.out.println("Average displacement: " + dxy.getMagnitude() + " @ iter: " + iter);
 
 					if (dxy.getMagnitude() > .0000001){		//if centroid is not close enough to center, recluster
 						changed = true;				
@@ -728,7 +755,7 @@ public class PilotState {
 			}
 		}
 
-		System.out.println("cluster iterations: " + iter);
+		//System.out.println("cluster iterations: " + iter);
 
 		this.graphics.clear();
 
@@ -737,7 +764,26 @@ public class PilotState {
 		}
 
 		//return centroid of cluster with highest resources
+		double total;
+		double most = Double.NEGATIVE_INFINITY;
+		Position best = null;
 
+		for (ArrayList<Asteroid> cluster : clusters){
+			total = 0; 
+
+			for (Asteroid ast : cluster){
+				total+=ast.getResources().getTotal();
+			}
+
+			total/= cluster.size();			//resource density of cluster
+
+			if (total > most){
+				most = total;
+				best = K.get(clusters.indexOf(cluster));
+			}
+		}
+
+		return best;
 	}
 
 	
@@ -757,7 +803,9 @@ public class PilotState {
 					}
 				}
 			}
+			//this.primeRealEstate;
 
+			//if ()
 			return  PurchaseTypes.BASE;
 		}
 
