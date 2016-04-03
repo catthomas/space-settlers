@@ -142,7 +142,11 @@ public class Genetic implements Serializable{
 	public void evolve(){
 		//Track fitness of current population and add to arraylist
 		this.testedCount = 0; //restart counter
-		this.best = findBest(); //store best
+		if(this.best == null){
+			this.best = findBest();
+		} else if(this.best.fitness < findBest().fitness){
+			this.best = findBest(); //update best to current!
+		}
 		
 		//perform selection and mutation for next generation
 		ArrayList<Genome> selection = new ArrayList<Genome>();
@@ -192,8 +196,9 @@ public class Genetic implements Serializable{
 					best = gen;
 				}
 			}
+			return best;
 		}
-		return best;
+		return null;
 	}
 	
 	public Genome getBest(){
