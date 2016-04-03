@@ -38,6 +38,7 @@ public class Genetic implements Serializable{
 
 	private Genetic(){
 		File f = new File("stan5674/"+fileName);
+		System.out.println("LEARNING HAS OCCURRED BEFORE! :)");
 		if(f.exists()) { //learning has occurred previously, set up on past knowledge
 			System.out.println("LEARNING HAS OCCURRED BEFORE! :)");
 			try {

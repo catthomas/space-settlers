@@ -38,9 +38,12 @@ import spacesettlers.simulator.Toroidal2DPhysics;
  * @author amy
  */
 public class CatAdamAgent extends TeamClient {
+	/** Pilot corresponds to an agent, map to knowledge representation **/
 	WeakHashMap<UUID, PilotState> pilots = new WeakHashMap<UUID, PilotState>();
-	int generation;
-	String outputFile = "learning.txt";
+
+	/** Learning variables **/
+	boolean runLearning = false; // toggle on and off
+	String outputFile = "learning.txt"; //file name to track learning statistics
 	int evalTime = 5000;			//time steps to evaluate a genome
 	Genome currentGenome = null;	//the currently evaluated Genome
 	double totalScore = 0;			//used to calculate fitnesses
@@ -60,7 +63,7 @@ public class CatAdamAgent extends TeamClient {
 				//System.out.println(space.getCurrentTimestep());
 
 				//handle fitness evaluations 
-				if (space.getCurrentTimestep() % evalTime == 0 && (ship != null || pilots != null)){ //avoid null pointer at game start
+				if (useLearning == true && space.getCurrentTimestep() % evalTime == 0){
 					//System.out.println("Evaluating genome @:" + space.getCurrentTimestep());
 
 					if (currentGenome == null){		//first initialization
@@ -125,22 +128,20 @@ public class CatAdamAgent extends TeamClient {
 	}
 
 	/**
-	 * Demonstrates one way to read in knowledge from a file
+	 * Required by parent class
 	 */
 	@Override
 	public void initialize(Toroidal2DPhysics space) {
-		//save what current generation number is
-		generation = Genetic.getInstance().generation;
+		//Do nothing~ covered in Genetic class
 	}
 
 	/**
-	 * Demonstrates saving out to the xstream file
-	 * You can save out other ways too.  This is a human-readable way to examine
-	 * the knowledge you have learned.
+	 * Writes the current genetic instance to a file at end of game. 
 	 */
 	@Override
 	public void shutDown(Toroidal2DPhysics space) {
 		//System.out.println("SHUTTING DOWN");
+		if(useLearning == true){
 	      try {
 	          // find file
 	          FileOutputStream out = new FileOutputStream("stan5674/"+Genetic.getInstance().fileName);
@@ -156,19 +157,22 @@ public class CatAdamAgent extends TeamClient {
 	       } catch (Exception ex) {
 	          ex.printStackTrace();
 	       }
+		}
 	}
 
 	public void testForEvolve(){
-		try{	          //Evolve knowledge base if appropriate pop size
+		try{	     
 	          if(Genetic.getInstance().testedCount >= popSizeToEvolve){
-	          	//set tested count here, just in case
+	          	//set tested count here, just in case other agents also test for evolve
 	          	Genetic.getInstance().testedCount = 0;
-	          //Print fitness to file
-	        	  PrintWriter print = new PrintWriter(new FileOutputStream(new File("stan5674/"+outputFile), true));
-	  	  		  print.append(""+Genetic.getInstance().generation+","+ Genetic.getInstance().trackFitness() +"\n"); //write generation number, score
-	  	  		  print.close();
-	        	  Genetic.getInstance().evolve(); //evolve
-	        	  System.out.println("~~~~~~~~~~~~~~EVOLVED~~~~~~~~~~~~~~~");
+	          	//Print fitness to file
+	        	PrintWriter print = new PrintWriter(new FileOutputStream(new File("stan5674/"+outputFile), true));
+	  	  		print.append(""+Genetic.getInstance().generation+","+ Genetic.getInstance().trackFitness() +"\n"); //write generation number, score
+	  	  		print.close();
+	  	  		
+	  	  		//evolve
+	        	Genetic.getInstance().evolve(); 
+	        	System.out.println("~~~~~~~~~~~~~~EVOLVED~~~~~~~~~~~~~~~");
 	          }
 	        } catch (Exception ex) {
 	        	ex.printStackTrace();
@@ -229,8 +233,6 @@ public class CatAdamAgent extends TeamClient {
 	public Map<UUID, SpaceSettlersPowerupEnum> getPowerups(Toroidal2DPhysics space,
 			Set<AbstractActionableObject> actionableObjects) {
 		HashMap<UUID, SpaceSettlersPowerupEnum> powerUps = new HashMap<UUID, SpaceSettlersPowerupEnum>();
-
-		
 		return powerUps;
 	}
 	
