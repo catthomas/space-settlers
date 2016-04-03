@@ -184,8 +184,9 @@ public class Genetic implements Serializable{
 					best = gen;
 				}
 			}
+			return best;
 		}
-		return best;
+		return null;
 	}
 	
 	public Genome getBest(){

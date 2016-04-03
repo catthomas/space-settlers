@@ -44,7 +44,7 @@ public class CatAdamAgent extends TeamClient {
 	/** Learning variables **/
 	boolean runLearning = false; // toggle on and off
 	String outputFile = "learning.txt"; //file name to track learning statistics
-	int evalTime = 5000;			//time steps to evaluate a genome
+	int evalTime = 1000;			//time steps to evaluate a genome
 	Genome currentGenome = null;	//the currently evaluated Genome
 	double totalScore = 0;			//used to calculate fitnesses
 	int popSizeToEvolve = 40; 		//evolve once this amount of genomes sampled
@@ -56,7 +56,7 @@ public class CatAdamAgent extends TeamClient {
 
 		// loop through each ship
 		for (AbstractObject actionable :  actionableObjects) {
-			//System.out.println(actionable);
+			System.out.println(Genetic.getInstance().getBest());
 			if (actionable instanceof Ship) {
 				Ship ship = (Ship) actionable;
 				 
@@ -145,6 +145,7 @@ public class CatAdamAgent extends TeamClient {
 	@Override
 	public void initialize(Toroidal2DPhysics space) {
 		//Do nothing~ covered in Genetic class
+		System.out.println("Best of knowledge: " + Genetic.getInstance().getBest());
 	}
 
 	/**
@@ -179,7 +180,7 @@ public class CatAdamAgent extends TeamClient {
 	          	Genetic.getInstance().testedCount = 0;
 	          	//Print fitness to file
 	        	PrintWriter print = new PrintWriter(new FileOutputStream(new File("stan5674/"+outputFile), true));
-	  	  		print.append(""+Genetic.getInstance().generation+","+ Genetic.getInstance().trackFitness()+","+ Genetic.getInstance().findBest() +"\n"); //write generation number, score
+	  	  		print.append(""+Genetic.getInstance().generation+","+ Genetic.getInstance().trackFitness()+","+ Genetic.getInstance().findBest().fitness +"\n"); //write generation number, score
 	  	  		print.close();
 	  	  		
 	  	  		//evolve
