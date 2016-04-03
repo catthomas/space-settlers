@@ -35,6 +35,14 @@ public class Genetic implements Serializable{
 	 * 
 	 */
 	private static final long serialVersionUID = -4070454895004720955L;
+ 
+
+	static Comparator<Genome> FITTEST = new Comparator<Genome>(){
+		public int compare(Genome a, Genome b) {
+			return (int)(b.getFitness() - a.getFitness());
+		};
+	};
+
 
 	private Genetic(){
 		File f = new File("stan5674/"+fileName);
@@ -144,8 +152,8 @@ public class Genetic implements Serializable{
 			selection.add(this.tourn());
 		}
 
-		Collections.sort(this.pop, (a, b) -> (int)(b.getFitness() - a.getFitness()));
-		Collections.sort(selection, (a, b) -> (int)(b.getFitness() - a.getFitness()));		//sort selection in descending order of fitness
+		Collections.sort(this.pop, FITTEST);
+		Collections.sort(selection, FITTEST);		//sort selection in descending order of fitness
 
 		for (int i = 0; i < this.ELITE_CLONES; i++){	//clone best genomes to next generation without change (resetting fitness)
 			if (i < this.pop.size())
