@@ -4,11 +4,7 @@ import stan5674.Genetic;
 import stan5674.Genome;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
 import java.util.HashMap;
@@ -18,14 +14,10 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.WeakHashMap;
 
-import com.thoughtworks.xstream.XStream;
-import com.thoughtworks.xstream.XStreamException;
-
 import spacesettlers.actions.AbstractAction;
 import spacesettlers.actions.DoNothingAction;
 import spacesettlers.actions.PurchaseCosts;
 import spacesettlers.actions.PurchaseTypes;
-import spacesettlers.clients.ExampleKnowledge;
 import spacesettlers.clients.ImmutableTeamInfo;
 import spacesettlers.clients.TeamClient;
 import spacesettlers.graphics.SpacewarGraphics;
@@ -67,7 +59,7 @@ public class CatAdamAgent extends TeamClient {
 				//System.out.println(space.getCurrentTimestep());
 
 				//handle fitness evaluations 
-				if (space.getCurrentTimestep() % evalTime == 0){
+				if (space.getCurrentTimestep() % evalTime == 0 && ship != null){
 					System.out.println("Evaluating genome @:" + space.getCurrentTimestep());
 
 					if (currentGenome == null){		//first initialization
