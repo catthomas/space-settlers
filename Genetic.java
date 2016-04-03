@@ -20,7 +20,7 @@ public class Genetic implements Serializable{
 
 	ArrayList<Genome> lastPop;
 	ArrayList<Genome> pop;
-	//ArrayList<Float> avgFitOverGen; //Track learning statistics
+	Genome best;
 	int testedCount;
 	int nextCand;
 	int generation;
@@ -54,6 +54,7 @@ public class Genetic implements Serializable{
 				this.generation = knowledge.generation;
 				//this.avgFitOverGen = knowledge.avgFitOverGen;
 				this.testedCount = knowledge.testedCount;
+				this.best = knowledge.best;
 				ois.close();
 				fis.close();
 			} catch (Exception e1) {
@@ -66,6 +67,7 @@ public class Genetic implements Serializable{
 				this.testedCount = 0;
 				this.nextCand = 0;
 				this.generation = 0;
+				this.best = null;
 			}
 		} else { //learning has not occurred before
 			System.out.println("LEARNING HAS NOT OCCURRED BEFORE! :(");
@@ -75,6 +77,7 @@ public class Genetic implements Serializable{
 			this.testedCount = 0;
 			this.nextCand = 0;
 			this.generation = 0;
+			this.best = null;
 		}
 	}
 	
@@ -131,7 +134,7 @@ public class Genetic implements Serializable{
 	public void evolve(){
 		//Track fitness of current population and add to arraylist
 		this.testedCount = 0; //restart counter
-		//this.avgFitOverGen.add(this.trackFitness());
+		this.best = findBest(); //store best
 		
 		//perform selection and mutation for next generation
 		ArrayList<Genome> selection = new ArrayList<Genome>();
@@ -171,6 +174,22 @@ public class Genetic implements Serializable{
 
 		this.nextCand = 0;
 		this.generation++;
+	}
+	
+	public Genome findBest(){
+		if(pop.size() > 0){ //avoid possible index out of bounds
+			Genome best = pop.get(0);
+			for(Genome gen : this.pop){
+				if(gen.getFitness() > best.getFitness()){
+					best = gen;
+				}
+			}
+		}
+		return best;
+	}
+	
+	public Genome getBest(){
+		return best;
 	}
 	
 	public Float trackFitness(){
