@@ -1,10 +1,10 @@
 package stan5674;
 
 import java.util.*;
+import java.awt.Color;
 
 import spacesettlers.actions.*;
-import spacesettlers.graphics.LineGraphics;
-import spacesettlers.graphics.SpacewarGraphics;
+import spacesettlers.graphics.*;
 import spacesettlers.objects.*;
 import spacesettlers.objects.resources.ResourcePile;
 import spacesettlers.objects.weapons.Missile;
@@ -31,7 +31,7 @@ public class PilotState {
 	private Ship vessel;
 	
 	// Variables for A* and path planning
-	private boolean usePlanning = false; //turn A* on and off - runs more light weight if off
+	private boolean usePlanning = true; //turn A* on and off - runs more light weight if off
 	private Node goal; //Goal location of vessel
 	private WeakHashMap<UUID, Set<Node>> graph = new WeakHashMap<UUID, Set<Node>>(); //Holds graph used for A*
 	private WeakHashMap<UUID, Node> nodes = new WeakHashMap<UUID, Node>();	//Holds nodes used in A* graph
@@ -142,7 +142,7 @@ public class PilotState {
 			objects.add(beacon);
 		}
 
-		System.out.println("~~~~~~Objects in FOV: " + objects.size() + "~~~~~~~");
+		//System.out.println("~~~~~~Objects in FOV: " + objects.size() + "~~~~~~~");
 
 		for (AbstractObject a : objects){		//initialize all nodes
 			this.nodes.put(a.getId(), new Node(a));
@@ -295,7 +295,7 @@ public class PilotState {
 	public void setPath(Toroidal2DPhysics state, WeakHashMap<UUID, UUID> previousNode, Node start, Node goal){
 		//System.out.println("~~~~~~~SET PATH STARTED~~~~~~~~~~~~~");
 		this.path.clear();
-		this.graphics.clear();
+		//this.graphics.clear();
 		
 		Node current = goal; //Start from end, assume goal was found
 		Position prevPos;
@@ -472,6 +472,7 @@ public class PilotState {
 
 	public void prePlan(Toroidal2DPhysics space, Ship vessel){
 		this.genGraph(space, vessel);
+		this.findGoldmine(space, vessel);
 	
 		Node start = this.nodes.get(vessel.getId());
 		AbstractObject temp = null;
@@ -648,6 +649,97 @@ public class PilotState {
 		}
 		return target;
 	}
+
+	//uses K-means clustering to find a location with high resource density
+	public void findGoldmine(Toroidal2DPhysics space, Ship vessel){
+		int k = 8;													//number of clusters
+		Random rand = new Random();
+		List<Asteroid> prospects = getMinableAsteroids(space);		//maybe only consider stationary asteroids?
+		int[] ptok = new int[prospects.size()];						//links prospects to their closest centroid (k)
+		
+		List<Position> K = new ArrayList<Position>(k);				//K mean positions
+		List<ArrayList<Asteroid>> clusters = new ArrayList<ArrayList<Asteroid>>(k);		//keep track of cluster assignments K index : [prospect indexes]
+
+		for (int i =0; i<k; i++){
+			K.add(space.getRandomFreeLocation(rand, 0));			
+		}
+
+		for (int i = 0; i < k; i ++){
+			clusters.add(new ArrayList<Asteroid>());
+		}
+
+		double minDist;
+		double dist;
+		int count;
+		Vector2D dxy;
+		boolean changed = true;
+		int MAX_ITER = 100;
+		int iter = 0;
+
+		System.out.println("Clustering " + prospects.size() + " asteroids...");
+
+		while (changed && iter < MAX_ITER){
+			iter++;
+			changed = false;			//reset change flag
+
+
+
+			for (int j = 0; j < prospects.size(); j++){
+				minDist = Double.POSITIVE_INFINITY;
+
+				for (int i = 0; i < K.size(); i++){
+					dist = space.findShortestDistance(prospects.get(j).getPosition(), K.get(i));
+
+					if (dist < minDist){
+						minDist = dist;
+						ptok[j] = i;
+					}
+				}
+			}
+			
+			for (ArrayList<Asteroid> cluster : clusters){
+				cluster.clear();
+			}
+
+			for (int i = 0; i < ptok.length; i++){
+				clusters.get(ptok[i]).add(prospects.get(i));
+			}
+
+			for (int i = 0; i < clusters.size(); i++){
+				count = clusters.get(i).size();
+
+				if (count != 0){
+					dxy = new Vector2D();
+
+					for (Asteroid j : clusters.get(i)){
+						dxy = dxy.add(space.findShortestDistanceVector(K.get(i), j.getPosition()));
+					}
+
+					dxy = dxy.divide(count);			//average displacement from centroid
+
+					System.out.println("Average displacement: " + dxy.getMagnitude() + " @ iter: " + iter);
+
+					if (dxy.getMagnitude() > .0000001){		//if centroid is not close enough to center, recluster
+						changed = true;				
+						K.get(i).setX(K.get(i).getX() + dxy.getXValue());
+						K.get(i).setY(K.get(i).getY() + dxy.getYValue());
+					}
+				}
+			}
+		}
+
+		System.out.println("cluster iterations: " + iter);
+
+		this.graphics.clear();
+
+		for (Position c : K){
+			this.graphics.add(new CircleGraphics(2, Color.RED, c));
+		}
+
+		//return centroid of cluster with highest resources
+
+	}
+
 	
 	//pilot decides what to buy from shop
 	public PurchaseTypes shop(Toroidal2DPhysics space, Ship vessel, ResourcePile funds, PurchaseCosts prices){
