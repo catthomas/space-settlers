@@ -179,7 +179,7 @@ public class CatAdamAgent extends TeamClient {
 	          	Genetic.getInstance().testedCount = 0;
 	          	//Print fitness to file
 	        	PrintWriter print = new PrintWriter(new FileOutputStream(new File("stan5674/"+outputFile), true));
-	  	  		print.append(""+Genetic.getInstance().generation+","+ Genetic.getInstance().trackFitness() +"\n"); //write generation number, score
+	  	  		print.append(""+Genetic.getInstance().generation+","+ Genetic.getInstance().trackFitness()+","+ Genetic.getInstance().findBest() +"\n"); //write generation number, score
 	  	  		print.close();
 	  	  		
 	  	  		//evolve
