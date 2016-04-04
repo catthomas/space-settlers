@@ -34,7 +34,7 @@ public class PilotState {
 	private Ship vessel;
 	
 	// Variables for A* and path planning
-	private boolean usePlanning = false; //turn A* on and off - runs more light weight if off
+	private boolean usePlanning = true; //turn A* on and off - runs more light weight if off
 	private Node goal; //Goal location of vessel
 	private WeakHashMap<UUID, List<Node>> graph = new WeakHashMap<UUID, List<Node>>(); //Holds graph used for A*
 	private WeakHashMap<UUID, Node> nodes = new WeakHashMap<UUID, Node>();	//Holds nodes used in A* graph
@@ -879,7 +879,7 @@ public class PilotState {
 	public PurchaseTypes shop(Toroidal2DPhysics space, Ship vessel, ResourcePile funds, PurchaseCosts prices){
 		Position currentPosition = vessel.getPosition();
 
-		if (space.getCurrentTimestep() % this.SURVEY_TIME == 0){		//reservey land
+		if (this.usePlanning ==true && space.getCurrentTimestep() % this.SURVEY_TIME == 0){		//reservey land
 			this.primeRealEstate = this.findGoldmine(space, vessel);
 		}
 
@@ -900,9 +900,11 @@ public class PilotState {
 
 
 			//purchase a base if on prime real estate, or if ship is trying to reach a base anyways
-			if (this.primeRealEstate != null && space.findShortestDistance(currentPosition, this.primeRealEstate) < 100 || 
-				this.goal.getObject() instanceof Base){
+			if ((this.primeRealEstate != null && space.findShortestDistance(currentPosition, this.primeRealEstate) < 100) || 
+				(this.goal != null && this.goal.getObject() instanceof Base)){
 
+				return  PurchaseTypes.BASE;
+			} else if (this.usePlanning == false){
 				return  PurchaseTypes.BASE;
 			}
 		}
