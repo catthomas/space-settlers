@@ -227,7 +227,6 @@ public class Genetic implements Serializable{
 
 		Genome cand = this.pop.get(this.nextCand);
 		this.nextCand++;
-		this.testedCount++;
 
 		return cand;
 	}

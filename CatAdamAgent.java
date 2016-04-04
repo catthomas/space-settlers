@@ -88,6 +88,7 @@ public class CatAdamAgent extends TeamClient {
 						}
 						//System.out.println("Evaluation finished for " + this.getTeamName()+ " with fitness: "+ fitness);
 						currentGenome.setFitness((float)fitness);		//genome uses float for fitness...
+						Genetic.getInstance().testedCount++;	//increment testedcount
 						this.testForEvolve(); //See if time to evolve, evolve if ready
 
 
@@ -156,7 +157,7 @@ public class CatAdamAgent extends TeamClient {
 	 */
 	@Override
 	public void shutDown(Toroidal2DPhysics space) {
-		//System.out.println("SHUTTING DOWN");
+		System.out.println("SHUTTING DOWN: number of ships " + pilots.size());
 		if(runLearning == true){ //don't write out knowledge if not learning
 	      try {
 	          // find file

@@ -33,7 +33,7 @@ public class PilotState {
 	private Ship vessel;
 	
 	// Variables for A* and path planning
-	private boolean usePlanning = true; //turn A* on and off - runs more light weight if off
+	private boolean usePlanning = false; //turn A* on and off - runs more light weight if off
 	private Node goal; //Goal location of vessel
 	private WeakHashMap<UUID, List<Node>> graph = new WeakHashMap<UUID, List<Node>>(); //Holds graph used for A*
 	private WeakHashMap<UUID, Node> nodes = new WeakHashMap<UUID, Node>();	//Holds nodes used in A* graph
@@ -567,7 +567,7 @@ public class PilotState {
 		}
 		//return resources to base
 		else if (vessel.getResources().getTotal() > CARGO_CAPACITY){
-			System.out.println("~~~~~Planning TO BASE~~~~~");
+			//System.out.println("~~~~~Planning TO BASE~~~~~");
 			temp = findNearestBase(space, vessel, false);
 			if(temp != null){
 				goal = this.nodes.get(temp.getId());
@@ -585,7 +585,7 @@ public class PilotState {
 		if(goal != null){
 			this.planPath(space, start, goal);	//find best path to goal
 		} else {
-			System.out.println("~~~~~~~~~~Goal Not Found~~~~~~~");
+			//System.out.println("~~~~~~~~~~Goal Not Found~~~~~~~");
 		}
 	}
 	
