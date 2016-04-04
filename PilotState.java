@@ -22,19 +22,20 @@ public class PilotState {
 	private int MAX_SPEED = 200;				//speed of travel coefficient
 	private int FRONTIER = 500;			//min distance between bases
 	
-	private float FOV = 1000;			//Max distance to consider objects
+	private float FOV = 1250;			//Max distance to consider objects
 	private int MIN_BASE_FUEL = 1000;	//Minimum base fuel to be considered a candidate for refueling
 	private int EXE_TIME = 30;			//max time between planning
 	private int SURVEY_TIME = 100;		//survey space for good real estate after this many time steps
-	private int CLOSE_ESC = 125;			//object is considered particularly close
+	private int CLOSE_ESC = 200;			//object is considered particularly close
 	private int TRAJ_ANGLE = 50;			//when determining best prospect, prioritize objects within this angle
+	private double BEACON_DISCOUNT = .1;		//how much are we willing to trade distance for convenient beacons
 
 	private Ship vessel;
 	
 	// Variables for A* and path planning
-	private boolean usePlanning = false; //turn A* on and off - runs more light weight if off
+	private boolean usePlanning = true; //turn A* on and off - runs more light weight if off
 	private Node goal; //Goal location of vessel
-	private WeakHashMap<UUID, Set<Node>> graph = new WeakHashMap<UUID, Set<Node>>(); //Holds graph used for A*
+	private WeakHashMap<UUID, List<Node>> graph = new WeakHashMap<UUID, List<Node>>(); //Holds graph used for A*
 	private WeakHashMap<UUID, Node> nodes = new WeakHashMap<UUID, Node>();	//Holds nodes used in A* graph
 	private Stack<Node> path = new Stack<Node>(); //The path the vessel is following
 	private Set<SpacewarGraphics> graphics = new HashSet<SpacewarGraphics>(); //Holds markers for A* path
@@ -49,10 +50,28 @@ public class PilotState {
 		return graphics;
 	}
 
+	public void getGraphGraphics(Toroidal2DPhysics state){
+		Set<UUID> ids = this.graph.keySet();
+		Node a;
+
+		this.graphics.clear();
+
+		for (UUID id : ids){
+			a = this.nodes.get(id);
+			for (Node node : this.graph.get(id)){
+				LineGraphics line = new LineGraphics(a.getObject().getPosition(), node.getObject().getPosition(), 
+					state.findShortestDistanceVector(a.getObject().getPosition(), node.getObject().getPosition()));
+				line.setLineColor(new Color(.5f, .5f, .5f, .3f));
+				graphics.add(line); 
+			}
+		}
+
+	}
+
 	//call in agent init to set FOV radius of pilot
 	public void setFOV(Toroidal2DPhysics space){
 		this.FOV = Math.min(space.getHeight(), space.getWidth());
-		this.FOV/=2;
+		//this.FOV/=2;
 	}
 	
 	/**
@@ -123,6 +142,20 @@ public class PilotState {
 		this.FRONTIER *= genome.frontierGene();
 	}
 
+	static public List<AbstractObject> closestFirst(Toroidal2DPhysics space, AbstractObject from, Set<AbstractObject> obj){
+		ArrayList<AbstractObject> to = new ArrayList<AbstractObject>(obj);
+
+		Comparator<AbstractObject> byDist = new Comparator<AbstractObject>(){
+			public int compare(AbstractObject a, AbstractObject b) {
+				return (int)space.findShortestDistance(from.getPosition(), a.getPosition()) -  (int)space.findShortestDistance(from.getPosition(), b.getPosition());
+			};
+		};
+
+		Collections.sort(to, byDist);
+
+		return to;
+	}
+
 	/**
 	 * Generates a graph of connected nodes to be used for pilot path planning.
 	 * @param space Environment of vessel
@@ -132,10 +165,14 @@ public class PilotState {
 		//System.out.println("~~~~~~Vessel: " + vessel.getPosition() + "~~~~~~~");
 		Set<AbstractObject> objects = this.objectsInFov(space, vessel);
 		AbstractObject base = this.findNearestBase(space, vessel, false);		//no place like home
-		AbstractObject beacon = this.findNearestBeacon(space, vessel); //or a gas station
+		AbstractObject beacon = this.findNearestBeacon(space, vessel); 			//or a gas station
+		AbstractObject refuel = this.findNearestRefuel(space, vessel);			//Just in case...
+		int maxDegree = 50;
+		int degree;
 		Set<AbstractObject> other;
 		Set<AbstractObject> obs;
-		Set<Node> children;
+		List<AbstractObject> closestOther;
+		List<Node> children;
 		this.graph.clear();
 		this.nodes.clear();
 		
@@ -153,15 +190,18 @@ public class PilotState {
 		}
 
 		for (AbstractObject a : objects){
-			children = new HashSet<Node>();
+			children = new ArrayList<Node>();
 			other = new HashSet<AbstractObject>(objects);
 			other.remove(a);	//Don't consider paths to self...
 
-			for (AbstractObject b : other){
-				obs = new HashSet<AbstractObject>(other);
+			closestOther = closestFirst(space, a, other);
+
+			degree = 0;
+			for (AbstractObject b : closestOther){
+				obs = new HashSet<AbstractObject>(closestOther);
 				obs.remove(b);	//b isn't in the way...
 
-				if (space.isPathClearOfObstructions(a.getPosition(), b.getPosition(), obs, vessel.getRadius()*2)){
+				if (space.isPathClearOfObstructions(a.getPosition(), b.getPosition(), obs, vessel.getRadius())){
 					children.add(this.nodes.get(b.getId()));
 				}	else {
 					Node bypass = this.generateBypassNode(space, a, obs, b);
@@ -170,11 +210,17 @@ public class PilotState {
 					//children.add(this.nodes.get(b.getId()));
 					
 				}
+				degree++;		//limit branching factor
+				if (degree >= maxDegree){
+					break;
+				}
 
 			}
 			
 			this.graph.put(a.getId(), children);
 		}
+
+		this.getGraphGraphics(space);
 		//System.out.println("~~~~~~Graph nodes generated: " + this.graph.size() + "~~~~~~");
 	};
 	
@@ -184,17 +230,17 @@ public class PilotState {
 		for (AbstractObject ob : obs){
 			canOb.clear();
 			canOb.add(ob);
-			if (!space.isPathClearOfObstructions(start.getPosition(), end.getPosition(), canOb, vessel.getRadius()*2)){
+			if (!space.isPathClearOfObstructions(start.getPosition(), end.getPosition(), canOb, vessel.getRadius())){
 				if (ob instanceof Beacon){		//never bypass a beacon
 					return null;
 				}
 				Vector2D vec = space.findShortestDistanceVector(start.getPosition(), ob.getPosition());
 				Vector2D posEsc;
 				Vector2D negEsc;
-				if (vec.getMagnitude() < this.CLOSE_ESC){
+				//if (vec.getMagnitude() < this.CLOSE_ESC){
 					vec = vec.getUnitVector();
-					posEsc = vec.rotate(2*Math.PI/3); //
-					negEsc = vec.rotate(-2*Math.PI/3);
+					posEsc = vec.rotate(Math.PI/2); 
+					negEsc = vec.rotate(-Math.PI/2);
 					
 					//Scale vector to be appropriate distance (this case, radius of end object + 2 radius of ship)
 					posEsc = posEsc.multiply(ob.getRadius()+2*vessel.getRadius());
@@ -217,13 +263,13 @@ public class PilotState {
 							//System.out.println("The final x position: " + bypass.getPosition().getX() + " The final Y position: " + bypass.getPosition().getY());
 							
 							this.nodes.put(bypass.getId(), new Node(bypass, true));
-							HashSet<Node> temp = new HashSet<Node>();
+							List<Node> temp = new ArrayList<Node>(1);
 							temp.add(this.nodes.get(end.getId()));
 							this.graph.put(bypass.getId(), temp);	//add end node as child node of bypass
 							return this.nodes.get(bypass.getId());
 						}
 					}
-				}
+				//}
 				return null;
 			}
 		}
@@ -265,7 +311,7 @@ public class PilotState {
 			closedList.add(current.getObject().getId());
 			
 			//expand current's neighbors
-			Set<Node> neighbors = this.graph.get(current.getObject().getId());
+			List<Node> neighbors = this.graph.get(current.getObject().getId());
 
 			//System.out.println("~~~~~~~~Expanding " + neighbors.size() + " neighbors ~~~~~~~~");
 
@@ -310,7 +356,7 @@ public class PilotState {
 	public void setPath(Toroidal2DPhysics state, WeakHashMap<UUID, UUID> previousNode, Node start, Node goal){
 		//System.out.println("~~~~~~~SET PATH STARTED~~~~~~~~~~~~~");
 		this.path.clear();
-		this.graphics.clear();
+		//this.graphics.clear();
 		
 		Node current = goal; //Start from end, assume goal was found
 		Position prevPos;
@@ -353,21 +399,21 @@ public class PilotState {
 			if(!(((Asteroid)nodeObject).isMineable())){	//don't visit unmineable asteroids	
 				return Double.POSITIVE_INFINITY;
 			} else if (goal.getObject() instanceof Base || goal.getObject() instanceof Beacon){		//and don't stop at asteroids if headed for fuel
-				return Double.POSITIVE_INFINITY;
+				return Double.MAX_VALUE;
 			}
 			
 		} else if (nodeObject instanceof Base){
 
 			if (!(((Base)nodeObject).getTeam().getShips().contains(this.vessel))){
-				return Double.POSITIVE_INFINITY;				//don't run into other team's bases
+				return Double.MAX_VALUE;			//don't run into other team's bases
 			} else if (!(goal.getObject() instanceof Base)){
-				return Double.POSITIVE_INFINITY;				//don't run into our base if not a goal
+				return Double.MAX_VALUE;			//don't run into our base if not a goal
 			}
 
 		} else if (nodeObject instanceof Ship || nodeObject instanceof Missile){
-			return Double.POSITIVE_INFINITY;	//or their ships & bullets
+			return Double.MAX_VALUE;	//or their ships & bullets
 		} else if (nodeObject instanceof Beacon && !start.isBypass){	//make it favorable to visit fuel beacons
-			return space.findShortestDistance(nodeObject.getPosition(), goal.getObject().getPosition())*.75;
+			return space.findShortestDistance(nodeObject.getPosition(), goal.getObject().getPosition())*this.BEACON_DISCOUNT;
 		}
 	//System.out.println("~~~~~~~Getting H for: "+ nodeObject.getPosition() + " to: " + goal.getObject().getPosition() + "~~~~~~~~~~");
 		return space.findShortestDistance(nodeObject.getPosition(), goal.getObject().getPosition());
@@ -463,6 +509,8 @@ public class PilotState {
 			}
 		}
 
+
+		//System.out.println("~~~~~~Fail safing in findnearstrefuel~~~~~~~~~~~");
 		return findNearestBase(space, vessel, false);		//failsafe, just go to the closest base even if insufficient fuel
 	}
 
@@ -518,8 +566,8 @@ public class PilotState {
 			}
 		}
 		//return resources to base
-		else if (temp == null && vessel.getResources().getTotal() > CARGO_CAPACITY){
-			//System.out.println("~~~~~Planning TO BASE~~~~~");
+		else if (vessel.getResources().getTotal() > CARGO_CAPACITY){
+			System.out.println("~~~~~Planning TO BASE~~~~~");
 			temp = findNearestBase(space, vessel, false);
 			if(temp != null){
 				goal = this.nodes.get(temp.getId());
@@ -536,6 +584,8 @@ public class PilotState {
 		}
 		if(goal != null){
 			this.planPath(space, start, goal);	//find best path to goal
+		} else {
+			System.out.println("~~~~~~~~~~Goal Not Found~~~~~~~");
 		}
 	}
 	
@@ -551,6 +601,7 @@ public class PilotState {
 		}
 
 		if (this.exe >= this.EXE_TIME || this.path.isEmpty()){		//Time to replan
+			//System.out.println("~~~~~~~~~Time to replan~~~~~~~~~" + this.exe + this.path.isEmpty());
 			this.prePlan(space, vessel);
 		}
 		
@@ -574,12 +625,19 @@ public class PilotState {
 	//How do we know when we reach a subgoal?
 	public void assessPlan(Toroidal2DPhysics space, Ship vessel){
 		if(this.usePlanning == false) return;
-		if (!this.path.empty())
-			if (!this.path.peek().getObject().isAlive() || 2*vessel.getRadius() >= space.findShortestDistance(vessel.getPosition(), this.path.peek().getObject().getPosition())){
+		
+		if (!this.path.empty()){
+			Position past = vessel.getPosition().deepCopy();		//where might we have been during this timestep?
+			past.setX(past.getX() - .1*vessel.getPosition().getTranslationalVelocityX());
+			past.setY(past.getY() - .1*vessel.getPosition().getTranslationalVelocityY());
+
+			if (this.path.peek().getObject().getRadius() + vessel.getRadius() >= space.findShortestDistance(past, this.path.peek().getObject().getPosition())){
 				this.path.pop();			//subgoal achieved
 				//System.out.println("~~~~~~Popping node~~~~~~~");
 			}
+		}
 		if (this.path.empty()){				//plan complete
+			//System.out.println("~~~~~~No node~~~~~~~");
 			this.exe = this.EXE_TIME;		//replan next timestep
 		}
 	};
@@ -610,18 +668,25 @@ public class PilotState {
 		MoveAction move;
 		Vector2D distVec = space.findShortestDistanceVector(current, goal);
 
-		if (Math.abs(distVec.angleBetween(this.vessel.getPosition().getTranslationalVelocity())) > 30){
+		if (Math.abs(distVec.angleBetween(this.vessel.getPosition().getTranslationalVelocity())) > 15){
 			distVec = distVec.getUnitVector().multiply(MAX_SPEED/2);	//slowdown for allignment
+			distVec = distVec.rotate(distVec.angleBetween(this.vessel.getPosition().getTranslationalVelocity()));
 			move = new MoveAction(space, current, goal, distVec);
+			//move = new MoveAction(space, current, new Position(goal.getX(), goal.getY(), distVec.angleBetween(this.vessel.getPosition().getTranslationalVelocity())), distVec);
 			// move.setKpRotational(36);
 			// move.setKvRotational(12);
 
 		} else {
 			distVec = distVec.getUnitVector().multiply(MAX_SPEED);		//controls MAX_SPEED in orientation
+			//distVec = distVec.rotate(distVec.angleBetween(this.vessel.getPosition().getTranslationalVelocity()));
+			//maybe rotate orientation 180 when close?
+			//move = new MoveAction(space, current, new Position(goal.getX(), goal.getY(), distVec.angleBetween(this.vessel.getPosition().getTranslationalVelocity())), distVec);
 			move = new MoveAction(space, current, goal, distVec);
 			// move.setKpRotational(36);
 			// move.setKvRotational(12);
 		}
+
+		//System.out.println(distVec);
 		//implement a function of mass fuel and closest refuel
 		return move;
 	};		
@@ -782,7 +847,7 @@ public class PilotState {
 				total+=ast.getResources().getTotal();
 			}
 
-			total/= cluster.size();			//resource density of cluster
+			//total/= cluster.size();			//resource density of cluster
 
 			if (total > most){
 				most = total;

@@ -130,11 +130,12 @@ public class CatAdamAgent extends TeamClient {
 							pilots.put(ship.getId(), new PilotState(space, Genetic.getInstance().getNextCandidate()));
 						}
 					}
+
+					pilots.get(ship.getId()).assessPlan(space, ship);
+
 				} else if (!pilots.containsKey(ship.getId())){
 					pilots.put(ship.getId(), new PilotState(space, Genetic.getInstance().getNextCandidate()));
-				} else {
-					pilots.get(ship.getId()).assessPlan(space, ship);
-				}
+				} 
 			}
 		} 
 	}
