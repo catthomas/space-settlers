@@ -34,7 +34,7 @@ public class PilotState {
 	private Ship vessel;
 	
 	// Variables for A* and path planning
-	private boolean usePlanning = true; //turn A* on and off - runs more light weight if off
+	private boolean usePlanning = false; //turn A* on and off - runs more light weight if off
 	private Node goal; //Goal location of vessel
 	private WeakHashMap<UUID, List<Node>> graph = new WeakHashMap<UUID, List<Node>>(); //Holds graph used for A*
 	private WeakHashMap<UUID, Node> nodes = new WeakHashMap<UUID, Node>();	//Holds nodes used in A* graph
@@ -883,11 +883,6 @@ public class PilotState {
 			this.primeRealEstate = this.findGoldmine(space, vessel);
 		}
 
-		//buy a ship whenever possible!
-		if (prices.canAfford(PurchaseTypes.SHIP, funds)){
-			//System.out.println("-----------------BUY A SHIP");
-			return PurchaseTypes.SHIP;
-		}
 		if (prices.canAfford(PurchaseTypes.BASE, funds)) {	//buy bases when you are in the frontier
 			for (Base base : space.getBases()) {
 				if (base.getTeamName().equalsIgnoreCase(vessel.getTeamName())) {

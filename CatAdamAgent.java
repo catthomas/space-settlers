@@ -42,7 +42,7 @@ public class CatAdamAgent extends TeamClient {
 	WeakHashMap<UUID, PilotState> pilots = new WeakHashMap<UUID, PilotState>();
 
 	/** Learning variables **/
-	boolean runLearning = true; // toggle on and off
+	boolean runLearning = false; // toggle on and off
 	String outputFile = "learning.txt"; //file name to track learning statistics
 	int evalTime = 2000;			//time steps to evaluate a genome
 	Genome currentGenome = null;	//the currently evaluated Genome
@@ -158,6 +158,7 @@ public class CatAdamAgent extends TeamClient {
 	 */
 	@Override
 	public void shutDown(Toroidal2DPhysics space) {
+		System.out.println("Ending game with: " + pilots.size() + " ships.");
 		if(runLearning == true){ //don't write out knowledge if not learning
 	      try {
 	          // find file
@@ -208,19 +209,17 @@ public class CatAdamAgent extends TeamClient {
 		HashMap<UUID, PurchaseTypes> purchases = new HashMap<UUID, PurchaseTypes>();
 		PurchaseTypes purchase=null;
 		
-		// // can I buy a ship?
-		// if (purchaseCosts.canAfford(PurchaseTypes.SHIP, resourcesAvailable)) {
-		// 	for (AbstractActionableObject actionableObject : actionableObjects) {
-		// 		if (actionableObject instanceof Base) {
-		// 			Base base = (Base) actionableObject;
-		// 			purchases.put(base.getId(), PurchaseTypes.SHIP);
-		// 			purchase = PurchaseTypes.SHIP;
-		// 			break;
-		// 		}
-
-		// 	}
-
-		// }
+		 // can I buy a ship?
+		 if (purchaseCosts.canAfford(PurchaseTypes.SHIP, resourcesAvailable)) {
+		 	for (AbstractActionableObject actionableObject : actionableObjects) {
+		 		if (actionableObject instanceof Base) {
+		 			Base base = (Base) actionableObject;
+		 			purchases.put(base.getId(), PurchaseTypes.SHIP);
+		 			purchase = PurchaseTypes.SHIP;
+		 			break;
+		 		}
+		 	}
+		 }
 
 		if(purchase == null){
 			for (AbstractActionableObject actionableObject : actionableObjects) {
@@ -231,13 +230,13 @@ public class CatAdamAgent extends TeamClient {
 					
 					if (purchase != null) {
 						purchases.put(ship.getId(), purchase);
-						return purchases;
+						break;
 					}
 				}		
 			}
 		}
 
-		return null;
+		return purchases;
 	}
 
 	/**
