@@ -17,8 +17,8 @@ public class Genetic implements Serializable{
 	/*
 		Genetic class handles generational evolution stuff on Genomes
 	*/
-	float MUT_RATE = .25f;
-	float MUT_VAR = .2f;
+	float MUT_RATE = .05f;
+	float MUT_VAR = .1f;
 	int TOURN_SIZE = 3;			//Expected number of greatest fit = (1 - ((popSize-1)/popSize)^tournSize))*popSize (5 tourn ~ 5/100)
 	int ELITE_CLONES = 2;
 
@@ -171,9 +171,13 @@ public class Genetic implements Serializable{
 		Collections.sort(this.pop, FITTEST);
 		Collections.sort(selection, FITTEST);		//sort selection in descending order of fitness
 
+		for (int i = 0; i < 8; i++)
+			System.out.println("Elite "+  (i+1) + " - fit " + this.pop.get(i).getFitness() + " - " + this.pop.get(i).getGenes()[0] + " : " + this.pop.get(i).getGenes()[1] + " : "+ this.pop.get(i).getGenes()[2] + " : " + this.pop.get(i).getGenes()[3]);
+
 		for (int i = 0; i < this.ELITE_CLONES; i++){	//clone best genomes to next generation without change (resetting fitness)
-			if (i < this.pop.size())
+			if (i < this.pop.size()){
 				nextGen.add(new Genome(this.pop.get(i).getGenes()));
+			}
 		}
 
 		Genome a;
@@ -254,6 +258,10 @@ public class Genetic implements Serializable{
 		this.nextCand++;
 
 		return cand;
+	}
+
+	public void tested(){
+		this.testedCount++;
 	}
 
 	/**

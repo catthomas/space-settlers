@@ -17,11 +17,10 @@ import stan5674.Genome;
  *
  */
 public class PilotState {
-	//Variables adjusted from learning
-	private int FUEL_COEF = 2000; 		//point of return
+	private int FUEL_COEF = 3000; 		//point of return was 2000
 	private int CARGO_CAPACITY = 3000; 	//Max resources to carry
 	private int MAX_SPEED = 200;				//speed of travel coefficient
-	private int FRONTIER = 500;			//min distance between bases
+	private int FRONTIER = 1000;			//min distance between bases was 500
 	
 	//Values used for heuristics
 	private float FOV = 1250;			//Max distance to consider objects
@@ -748,22 +747,12 @@ public class PilotState {
 
 	//uses K-means clustering to find a location with high resource density
 	public Position findGoldmine(Toroidal2DPhysics space, Ship vessel){
-		int k = 8;													//number of clusters
+		//int KK= 11;													//number of clusters
 		Random rand = new Random();
 		List<Asteroid> prospects = getMinableAsteroids(space);		//maybe only consider stationary asteroids?
 		int[] ptok = new int[prospects.size()];						//links prospects to their closest centroid (k)
 		
-		List<Position> K = new ArrayList<Position>(k);				//K mean positions
-		List<ArrayList<Asteroid>> clusters = new ArrayList<ArrayList<Asteroid>>(k);		//keep track of cluster assignments K index : [prospect indexes]
-
-		for (int i =0; i<k; i++){
-			K.add(space.getRandomFreeLocation(rand, 0));			
-		}
-
-		for (int i = 0; i < k; i ++){
-			clusters.add(new ArrayList<Asteroid>());
-		}
-
+		
 		double minDist;
 		double dist;
 		int count;
@@ -771,88 +760,118 @@ public class PilotState {
 		boolean changed = true;
 		int MAX_ITER = 100;
 		int iter = 0;
+		Position bestest = null;
+		double mostest = Double.NEGATIVE_INFINITY;
 
 		//System.out.println("Clustering " + prospects.size() + " asteroids...");
 
-		while (changed && iter < MAX_ITER){
-			iter++;
-			changed = false;			//reset change flag
+		//for (int k = 3; k < KK; k++){
+		int k = 9;
+			iter = 0;
+			changed = true;
+			List<Position> K = new ArrayList<Position>(k);				//K mean positions
+			List<ArrayList<Asteroid>> clusters = new ArrayList<ArrayList<Asteroid>>(k);		//keep track of cluster assignments K index : [prospect indexes]
 
+			for (int i =0; i<k; i++){
+				K.add(space.getRandomFreeLocation(rand, 0));			
+			}
 
+			for (int i = 0; i < k; i ++){
+				clusters.add(new ArrayList<Asteroid>());
+			}
 
-			for (int j = 0; j < prospects.size(); j++){
-				minDist = Double.POSITIVE_INFINITY;
+			while (changed && iter < MAX_ITER){
+				iter++;
+				changed = false;			//reset change flag
 
-				for (int i = 0; i < K.size(); i++){
-					dist = space.findShortestDistance(prospects.get(j).getPosition(), K.get(i));
+				for (int j = 0; j < prospects.size(); j++){
+					minDist = Double.POSITIVE_INFINITY;
 
-					if (dist < minDist){
-						minDist = dist;
-						ptok[j] = i;
+					for (int i = 0; i < K.size(); i++){
+						dist = space.findShortestDistance(prospects.get(j).getPosition(), K.get(i));
+
+						if (dist < minDist){
+							minDist = dist;
+							ptok[j] = i;
+						}
 					}
 				}
-			}
+				
+				for (ArrayList<Asteroid> cluster : clusters){
+					cluster.clear();
+				}
+
+				for (int i = 0; i < ptok.length; i++){
+					clusters.get(ptok[i]).add(prospects.get(i));
+				}
+
+				for (int i = 0; i < clusters.size(); i++){
+					count = clusters.get(i).size();
+
+					if (count != 0){
+						dxy = new Vector2D();
+
+						for (Asteroid j : clusters.get(i)){
+							dxy = dxy.add(space.findShortestDistanceVector(K.get(i), j.getPosition()));
+						}
+
+						dxy = dxy.divide(count);			//average displacement from centroid
+
+						//System.out.println("Average displacement: " + dxy.getMagnitude() + " @ iter: " + iter);
+
+						if (dxy.getMagnitude() > .0000001){		//if centroid is not close enough to center, recluster
+							changed = true;				
+							K.get(i).setX(K.get(i).getX() + dxy.getXValue());
+							K.get(i).setY(K.get(i).getY() + dxy.getYValue());
+						}
+					}
+				}
 			
+
+			//System.out.println("cluster iterations: " + iter);
+
+			// this.graphics.clear();
+
+			// for (Position c : K){
+			// 	this.graphics.add(new CircleGraphics(2, Color.RED, c));
+			// }
+
+			//return centroid of cluster with highest resource density
+			double total = 0;
+			double most = Double.NEGATIVE_INFINITY;
+			double extent = 0;
+			double fromCenter;
+			Position best = K.get(0);		//just init
+
 			for (ArrayList<Asteroid> cluster : clusters){
-				cluster.clear();
-			}
+				total = 0; 
+				extent = 1;
 
-			for (int i = 0; i < ptok.length; i++){
-				clusters.get(ptok[i]).add(prospects.get(i));
-			}
-
-			for (int i = 0; i < clusters.size(); i++){
-				count = clusters.get(i).size();
-
-				if (count != 0){
-					dxy = new Vector2D();
-
-					for (Asteroid j : clusters.get(i)){
-						dxy = dxy.add(space.findShortestDistanceVector(K.get(i), j.getPosition()));
-					}
-
-					dxy = dxy.divide(count);			//average displacement from centroid
-
-					//System.out.println("Average displacement: " + dxy.getMagnitude() + " @ iter: " + iter);
-
-					if (dxy.getMagnitude() > .0000001){		//if centroid is not close enough to center, recluster
-						changed = true;				
-						K.get(i).setX(K.get(i).getX() + dxy.getXValue());
-						K.get(i).setY(K.get(i).getY() + dxy.getYValue());
+				for (Asteroid ast : cluster){
+					total+=ast.getResources().getTotal();
+					fromCenter = space.findShortestDistance(ast.getPosition(), K.get(clusters.indexOf(cluster)));
+					if (extent < fromCenter){
+						extent = fromCenter;
 					}
 				}
+
+				total/= extent;			//resource density of cluster using the farthest node (think of the area of an encompassing circle defined by extent as the radius, without the extra math)
+
+				if (total > most){
+					most = total;
+					best = K.get(clusters.indexOf(cluster));
+				}
+			}
+
+			//System.out.println("k, resource density: " + k + "," + most);
+
+			if (mostest < most){
+				bestest = best;
+				mostest = total;
 			}
 		}
 
-		//System.out.println("cluster iterations: " + iter);
-
-		// this.graphics.clear();
-
-		// for (Position c : K){
-		// 	this.graphics.add(new CircleGraphics(2, Color.RED, c));
-		// }
-
-		//return centroid of cluster with highest resources
-		double total;
-		double most = Double.NEGATIVE_INFINITY;
-		Position best = null;
-
-		for (ArrayList<Asteroid> cluster : clusters){
-			total = 0; 
-
-			for (Asteroid ast : cluster){
-				total+=ast.getResources().getTotal();
-			}
-
-			//total/= cluster.size();			//resource density of cluster
-
-			if (total > most){
-				most = total;
-				best = K.get(clusters.indexOf(cluster));
-			}
-		}
-
-		return best;
+		return bestest;
 	}
 
 	
@@ -881,8 +900,8 @@ public class PilotState {
 
 
 			//purchase a base if on prime real estate, or if ship is trying to reach a base anyways
-			if (usePlanning == true && (space.findShortestDistance(currentPosition, this.primeRealEstate) < 100 || 
-				this.goal.getObject() instanceof Base)){
+			if (this.primeRealEstate != null && space.findShortestDistance(currentPosition, this.primeRealEstate) < 100 || 
+				this.goal.getObject() instanceof Base){
 
 				return  PurchaseTypes.BASE;
 			}
