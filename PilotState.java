@@ -146,7 +146,7 @@ public class PilotState {
 	
 
 	//Given an object and a set of other objects, sort the other objects by distance from the single object
-	static public List<AbstractObject> closestFirst(Toroidal2DPhysics space, AbstractObject from, Set<AbstractObject> obj){
+	static public List<AbstractObject> closestFirst(final Toroidal2DPhysics space, final AbstractObject from, final Set<AbstractObject> obj){
 		ArrayList<AbstractObject> to = new ArrayList<AbstractObject>(obj);
 
 		Comparator<AbstractObject> byDist = new Comparator<AbstractObject>(){
