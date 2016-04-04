@@ -42,9 +42,9 @@ public class CatAdamAgent extends TeamClient {
 	WeakHashMap<UUID, PilotState> pilots = new WeakHashMap<UUID, PilotState>();
 
 	/** Learning variables **/
-	boolean runLearning = false; // toggle on and off
+	boolean runLearning = true; // toggle on and off
 	String outputFile = "learning.txt"; //file name to track learning statistics
-	int evalTime = 1000;			//time steps to evaluate a genome
+	int evalTime = 2000;			//time steps to evaluate a genome
 	Genome currentGenome = null;	//the currently evaluated Genome
 	double totalScore = 0;			//used to calculate fitnesses
 	int popSizeToEvolve = 40; 		//evolve once this amount of genomes sampled
@@ -84,6 +84,7 @@ public class CatAdamAgent extends TeamClient {
 							if(info.getTeamName().equals(this.getTeamName())){
 								fitness = info.getScore() - this.totalScore; //difference in score is genome's fitness
 								this.totalScore = info.getScore();
+								Genetic.getInstance().tested();		//increment count of fitted genomes
 							}
 						}
 						//System.out.println("Evaluation finished for " + this.getTeamName()+ " with fitness: "+ fitness);
@@ -123,7 +124,7 @@ public class CatAdamAgent extends TeamClient {
 				
 				if(runLearning == false){
 					//Learning is not actively happening, but still load pilots from knowledge file and genomes
-					if (!pilots.containsKey(ship.getId())){
+					if (!pilots.containsKey(ship.getId())){			//newly purchased ship
 						if(Genetic.getInstance().getBest() != null){ //based on previous knowledge - use best!
 							pilots.put(ship.getId(), new PilotState(space, Genetic.getInstance().getBest()));
 						} else { //no knowledge wha wha
@@ -131,11 +132,11 @@ public class CatAdamAgent extends TeamClient {
 						}
 					}
 
-					pilots.get(ship.getId()).assessPlan(space, ship);
-
-				} else if (!pilots.containsKey(ship.getId())){
+				} else if (!pilots.containsKey(ship.getId())){		//newly purchased ship
 					pilots.put(ship.getId(), new PilotState(space, Genetic.getInstance().getNextCandidate()));
 				} 
+
+				pilots.get(ship.getId()).assessPlan(space, ship);
 			}
 		} 
 	}
@@ -207,19 +208,19 @@ public class CatAdamAgent extends TeamClient {
 		HashMap<UUID, PurchaseTypes> purchases = new HashMap<UUID, PurchaseTypes>();
 		PurchaseTypes purchase=null;
 		
-		// can I buy a ship?
-		if (purchaseCosts.canAfford(PurchaseTypes.SHIP, resourcesAvailable)) {
-			for (AbstractActionableObject actionableObject : actionableObjects) {
-				if (actionableObject instanceof Base) {
-					Base base = (Base) actionableObject;
-					purchases.put(base.getId(), PurchaseTypes.SHIP);
-					purchase = PurchaseTypes.SHIP;
-					break;
-				}
+		// // can I buy a ship?
+		// if (purchaseCosts.canAfford(PurchaseTypes.SHIP, resourcesAvailable)) {
+		// 	for (AbstractActionableObject actionableObject : actionableObjects) {
+		// 		if (actionableObject instanceof Base) {
+		// 			Base base = (Base) actionableObject;
+		// 			purchases.put(base.getId(), PurchaseTypes.SHIP);
+		// 			purchase = PurchaseTypes.SHIP;
+		// 			break;
+		// 		}
 
-			}
+		// 	}
 
-		}
+		// }
 
 		if(purchase == null){
 			for (AbstractActionableObject actionableObject : actionableObjects) {
@@ -230,13 +231,13 @@ public class CatAdamAgent extends TeamClient {
 					
 					if (purchase != null) {
 						purchases.put(ship.getId(), purchase);
-						break;
+						return purchases;
 					}
 				}		
 			}
 		}
 
-		return purchases;
+		return null;
 	}
 
 	/**
