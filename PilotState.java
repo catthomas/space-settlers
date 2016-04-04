@@ -32,7 +32,7 @@ public class PilotState {
 	private Ship vessel;
 	
 	// Variables for A* and path planning
-	private boolean usePlanning = true; //turn A* on and off - runs more light weight if off
+	private boolean usePlanning = false; //turn A* on and off - runs more light weight if off
 	private Node goal; //Goal location of vessel
 	private WeakHashMap<UUID, Set<Node>> graph = new WeakHashMap<UUID, Set<Node>>(); //Holds graph used for A*
 	private WeakHashMap<UUID, Node> nodes = new WeakHashMap<UUID, Node>();	//Holds nodes used in A* graph
@@ -511,7 +511,7 @@ public class PilotState {
 		Node start = this.nodes.get(vessel.getId());
 		AbstractObject temp = null;
 		if (vessel.getEnergy() < this.FUEL_COEF){
-			System.out.println("~~~~~Planning TO REFUEL~~~~~");
+			//System.out.println("~~~~~Planning TO REFUEL~~~~~");
 			temp = findNearestRefuel(space, vessel);
 			if(temp != null){
 				goal = this.nodes.get(temp.getId());
@@ -519,13 +519,13 @@ public class PilotState {
 		}
 		//return resources to base
 		else if (temp == null && vessel.getResources().getTotal() > CARGO_CAPACITY){
-			System.out.println("~~~~~Planning TO BASE~~~~~");
+			//System.out.println("~~~~~Planning TO BASE~~~~~");
 			temp = findNearestBase(space, vessel, false);
 			if(temp != null){
 				goal = this.nodes.get(temp.getId());
 			}
 		} else {	//just get resources
-			System.out.println("~~~~~Planning TO PROSPECT~~~~~");
+			//System.out.println("~~~~~Planning TO PROSPECT~~~~~");
 			//temp = getProspectWithinFOVAndTrajectory(space, vessel, TRAJ_ANGLE); //favor within certain angle
 			if(temp == null){
 				temp = findNearestProspect(space, vessel);
@@ -819,8 +819,8 @@ public class PilotState {
 
 
 			//purchase a base if on prime real estate, or if ship is trying to reach a base anyways
-			if (space.findShortestDistance(currentPosition, this.primeRealEstate) < 100 || 
-				this.goal.getObject() instanceof Base){
+			if (usePlanning == true && (space.findShortestDistance(currentPosition, this.primeRealEstate) < 100 || 
+				this.goal.getObject() instanceof Base)){
 
 				return  PurchaseTypes.BASE;
 			}
