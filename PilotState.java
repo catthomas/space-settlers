@@ -17,11 +17,13 @@ import stan5674.Genome;
  *
  */
 public class PilotState {
+	//Variables adjusted from learning
 	private int FUEL_COEF = 2000; 		//point of return
 	private int CARGO_CAPACITY = 3000; 	//Max resources to carry
 	private int MAX_SPEED = 200;				//speed of travel coefficient
 	private int FRONTIER = 500;			//min distance between bases
 	
+	//Values used for heuristics
 	private float FOV = 1250;			//Max distance to consider objects
 	private int MIN_BASE_FUEL = 1000;	//Minimum base fuel to be considered a candidate for refueling
 	private int EXE_TIME = 30;			//max time between planning
@@ -42,6 +44,25 @@ public class PilotState {
 	private int exe = this.EXE_TIME; 				//time spent executing current plan
 	private Position primeRealEstate;				//moost dense resource location
 
+	//constructor method
+	public PilotState(Toroidal2DPhysics space){
+		setFOV(space);
+		goal = null;
+		this.FUEL_COEF *= .5;
+		this.CARGO_CAPACITY *= .5;
+		this.MAX_SPEED *= .5;
+		this.FRONTIER *= .5;
+	}
+
+	//learning constructor method
+	public PilotState(Toroidal2DPhysics space, Genome genome){
+		setFOV(space);
+		goal = null;
+		this.FUEL_COEF *= genome.fuelCoefGene();
+		this.CARGO_CAPACITY *= genome.cargoCapacityGene();
+		this.MAX_SPEED *= genome.maxSpeedGene();
+		this.FRONTIER *= genome.frontierGene();
+	}
 	
 	//return the current graphics
 	public Set<SpacewarGraphics> getPathGraphics(){
@@ -50,6 +71,7 @@ public class PilotState {
 		return graphics;
 	}
 
+	//Returns graphics for the graph used by A*
 	public void getGraphGraphics(Toroidal2DPhysics state){
 		Set<UUID> ids = this.graph.keySet();
 		Node a;
@@ -122,26 +144,8 @@ public class PilotState {
 		}
 	}
 	
-	//constructor method
-	public PilotState(Toroidal2DPhysics space){
-		setFOV(space);
-		goal = null;
-		this.FUEL_COEF *= .5;
-		this.CARGO_CAPACITY *= .5;
-		this.MAX_SPEED *= .5;
-		this.FRONTIER *= .5;
-	}
 
-	//learning constructor method
-	public PilotState(Toroidal2DPhysics space, Genome genome){
-		setFOV(space);
-		goal = null;
-		this.FUEL_COEF *= genome.fuelCoefGene();
-		this.CARGO_CAPACITY *= genome.cargoCapacityGene();
-		this.MAX_SPEED *= genome.maxSpeedGene();
-		this.FRONTIER *= genome.frontierGene();
-	}
-
+	//Given an object and a set of other objects, sort the other objects by distance from the single object
 	static public List<AbstractObject> closestFirst(Toroidal2DPhysics space, AbstractObject from, Set<AbstractObject> obj){
 		ArrayList<AbstractObject> to = new ArrayList<AbstractObject>(obj);
 
@@ -553,6 +557,10 @@ public class PilotState {
 		return optimalApproach(space, currentPosition, goal.getPosition());
 	};
 
+	/**
+	 * Decides which action (find refuel, base, or collect asteroids) to follow
+	 * then submits to A* for path planning to goal. 
+	 */
 	public void prePlan(Toroidal2DPhysics space, Ship vessel){
 		this.genGraph(space, vessel);
 	
@@ -622,7 +630,7 @@ public class PilotState {
 		return this.optimalApproach(space, vessel.getPosition(), target);
 	};
 
-	//How do we know when we reach a subgoal?
+	//Determines if ship has reached a goal on its planned course
 	public void assessPlan(Toroidal2DPhysics space, Ship vessel){
 		if(this.usePlanning == false) return;
 		
@@ -642,7 +650,7 @@ public class PilotState {
 		}
 	};
 
-
+	//Returns nearest mineable asteroid to ship. 
 	public Asteroid findNearestProspect(Toroidal2DPhysics space, Ship vessel){
 		List<Asteroid> prospects = getMinableAsteroids(space);
 		double shortest = Double.POSITIVE_INFINITY;
@@ -662,6 +670,7 @@ public class PilotState {
 		return nearestProspect;
 	}
 
+	//Returns a move which should be both speedy and at an appropriate angle between given positions. 
 	public MoveAction optimalApproach(Toroidal2DPhysics space, Position current, Position goal){
 		//return fastest velocity vestor that the vessel can travel and still reach goal
 		//Vector2D goalVelocity = goal.getTranslationalVelocity();  //movement vector of goal object--we can use this to take better paths
@@ -673,8 +682,6 @@ public class PilotState {
 			distVec = distVec.rotate(distVec.angleBetween(this.vessel.getPosition().getTranslationalVelocity()));
 			move = new MoveAction(space, current, goal, distVec);
 			//move = new MoveAction(space, current, new Position(goal.getX(), goal.getY(), distVec.angleBetween(this.vessel.getPosition().getTranslationalVelocity())), distVec);
-			// move.setKpRotational(36);
-			// move.setKvRotational(12);
 
 		} else {
 			distVec = distVec.getUnitVector().multiply(MAX_SPEED);		//controls MAX_SPEED in orientation
@@ -682,12 +689,7 @@ public class PilotState {
 			//maybe rotate orientation 180 when close?
 			//move = new MoveAction(space, current, new Position(goal.getX(), goal.getY(), distVec.angleBetween(this.vessel.getPosition().getTranslationalVelocity())), distVec);
 			move = new MoveAction(space, current, goal, distVec);
-			// move.setKpRotational(36);
-			// move.setKvRotational(12);
 		}
-
-		//System.out.println(distVec);
-		//implement a function of mass fuel and closest refuel
 		return move;
 	};		
 
@@ -707,11 +709,6 @@ public class PilotState {
 	
 	/**
 	 * Returns a list of all objects (asteroids, bases, other ships, beacons) within the pilot's field of view
-	 * TODO: test this method
-	 * @param space
-	 * @param object
-	 * @param radius
-	 * @return Set of all objects within FOV
 	 */
 	public Set<AbstractObject> objectsInFov(Toroidal2DPhysics space, Ship ship){
 		Set<AbstractObject> objects = new HashSet<AbstractObject>();

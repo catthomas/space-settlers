@@ -8,15 +8,19 @@ import java.util.*;
 
 import stan5674.Genome;
 
+/**
+ * Handles a population of genomes and evolves them over time.
+ *
+ */
 public class Genetic implements Serializable{
 
 	/*
 		Genetic class handles generational evolution stuff on Genomes
 	*/
-	float MUT_RATE = .3f;
-	float MUT_VAR = .1f;
-	int TOURN_SIZE = 5;			//Expected number of greatest fit = (1 - ((popSize-1)/popSize)^tournSize))*popSize (5 tourn ~ 5/100)
-	int ELITE_CLONES = 0;
+	float MUT_RATE = .25f;
+	float MUT_VAR = .2f;
+	int TOURN_SIZE = 3;			//Expected number of greatest fit = (1 - ((popSize-1)/popSize)^tournSize))*popSize (5 tourn ~ 5/100)
+	int ELITE_CLONES = 2;
 
 	ArrayList<Genome> lastPop;
 	ArrayList<Genome> pop;
@@ -37,51 +41,52 @@ public class Genetic implements Serializable{
 	private static final long serialVersionUID = -4070454895004720955L;
  
 
+	/**
+	 * Fitness function comparator.
+	 */
 	static Comparator<Genome> FITTEST = new Comparator<Genome>(){
 		public int compare(Genome a, Genome b) {
 			return (int)(b.getFitness() - a.getFitness());
 		};
 	};
 
-
+	/**
+	 * Instantiates as a singleton class from a file. If file
+	 * is not available, initial genetic values are set. 
+	 */
 	private Genetic(){
 		File f = new File("stan5674/"+fileName);
 		if(f.exists()) { //learning has occurred previously, set up on past knowledge
-			System.out.println("LEARNING HAS OCCURRED BEFORE! :)");
+			//System.out.println("LEARNING HAS OCCURRED BEFORE! :)");
 			try {
 				FileInputStream fis;
 				ObjectInputStream ois;
 				fis = new FileInputStream(f);
 				ois = new ObjectInputStream(fis);
-				Genetic knowledge = (Genetic) ois.readObject(); //remove object from file when read?
+				Genetic knowledge = (Genetic) ois.readObject(); 
 				
 				//Initialize values from file read
 				this.lastPop = knowledge.lastPop;
 				this.pop = knowledge.pop;
 				this.nextCand = knowledge.nextCand;
 				this.generation = knowledge.generation;
-				//this.avgFitOverGen = knowledge.avgFitOverGen;
 				this.testedCount = knowledge.testedCount;
 				this.best = knowledge.best;
 				ois.close();
 				fis.close();
 			} catch (Exception e1) {
-				// TODO Auto-generated catch block
-				System.out.println("Error occurred reading in Genetic file... starting from scratch.");
 				//error occurred, start from new knowledge..?
 				this.lastPop = null;
 				this.pop = new ArrayList<Genome>();
-				//this.avgFitOverGen = new ArrayList<Float>();
 				this.testedCount = 0;
 				this.nextCand = 0;
 				this.generation = 0;
 				this.best = null;
 			}
 		} else { //learning has not occurred before
-			System.out.println("LEARNING HAS NOT OCCURRED BEFORE! :(");
+			//System.out.println("LEARNING HAS NOT OCCURRED BEFORE! :(");
 			this.lastPop = null;
 			this.pop = new ArrayList<Genome>();
-			//this.avgFitOverGen = new ArrayList<Float>();
 			this.testedCount = 0;
 			this.nextCand = 0;
 			this.generation = 0;
@@ -108,7 +113,7 @@ public class Genetic implements Serializable{
 		}
 	}
 
-	/*
+	/**
 		Performs uniform mutation on Genome
 	*/
 	public void mutate(Genome gen){
@@ -123,6 +128,10 @@ public class Genetic implements Serializable{
 		}
 	}
 
+	/**
+	 * Runs a competitive tournament on a small sample
+	 * of the population.
+	 */
 	public Genome tourn(){
 		Genome winner = null;
 		Genome contestant;
@@ -139,6 +148,9 @@ public class Genetic implements Serializable{
 		return new Genome(winner.getGenes());
 	}
 
+	/**
+	 * Evolves the current population of genomes. 
+	 */
 	public void evolve(){
 		//Track fitness of current population and add to arraylist
 		this.testedCount = 0; //restart counter
@@ -188,6 +200,9 @@ public class Genetic implements Serializable{
 		this.generation++;
 	}
 	
+	/**
+	 * Returns the fittest genome in the current population.
+	 */
 	public Genome findBest(){
 		if(pop.size() > 0){ //avoid possible index out of bounds
 			Genome best = pop.get(0);
@@ -205,6 +220,9 @@ public class Genetic implements Serializable{
 		return best;
 	}
 	
+	/**
+	 * Returns the average fitness of the current population.
+	 */
 	public Float trackFitness(){
 		float sumFit = 0;
 		for(Genome gen : this.pop){
@@ -216,10 +234,17 @@ public class Genetic implements Serializable{
 		return sumFit;
 	}
 
+	/**
+	 * Returns a mutation constant. 
+	 */
 	public float normal(){
 		return (float)rand.nextGaussian()*this.MUT_VAR;
 	}
 
+	/**
+	 * Gets a genome from the population to be used
+	 * by an agent. 
+	 */
 	public Genome getNextCandidate(){
 		if (this.pop.size() <= this.nextCand){
 			this.pop.add(new Genome());
@@ -231,10 +256,17 @@ public class Genetic implements Serializable{
 		return cand;
 	}
 
+	/**
+	 * Getter for pop
+	 */
 	public ArrayList<Genome> getPop(){
 		return this.pop;
 	}
 
+	/**
+	 * Returns the current generation number.
+	 * Essentially, how many times the genomes have evolved. 
+	 */
 	public int generation(){
 		return this.generation;
 	}

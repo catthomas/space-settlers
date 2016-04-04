@@ -147,9 +147,9 @@ public class CatAdamAgent extends TeamClient {
 	@Override
 	public void initialize(Toroidal2DPhysics space) {
 		//Do nothing~ covered in Genetic class
-		if(Genetic.getInstance().getBest() != null){
-			System.out.println("Best of knowledge: " + Genetic.getInstance().getBest().fitness);
-		}
+//		if(Genetic.getInstance().getBest() != null){
+//			System.out.println("Best of knowledge: " + Genetic.getInstance().getBest().fitness);
+//		}
 	}
 
 	/**
@@ -157,7 +157,6 @@ public class CatAdamAgent extends TeamClient {
 	 */
 	@Override
 	public void shutDown(Toroidal2DPhysics space) {
-		System.out.println("SHUTTING DOWN: number of ships " + pilots.size());
 		if(runLearning == true){ //don't write out knowledge if not learning
 	      try {
 	          // find file
@@ -172,7 +171,7 @@ public class CatAdamAgent extends TeamClient {
 	          oout.close();
 	          out.close();  
 	       } catch (Exception ex) {
-	          ex.printStackTrace();
+	          //do nothing
 	       }
 		}
 	}
@@ -189,10 +188,10 @@ public class CatAdamAgent extends TeamClient {
 	  	  		
 	  	  		//evolve
 	        	Genetic.getInstance().evolve(); 
-	        	System.out.println("~~~~~~~~~~~~~~EVOLVED~~~~~~~~~~~~~~~");
+	        	//System.out.println("~~~~~~~~~~~~~~EVOLVED~~~~~~~~~~~~~~~");
 	          }
 	        } catch (Exception ex) {
-	        	ex.printStackTrace();
+	        	//do nothing
 	        }
 	}
 
