@@ -38,9 +38,6 @@ import spacesettlers.simulator.Toroidal2DPhysics;
  * @author amy
  */
 public class CatAdamAgent extends TeamClient {
-	/** Pilot corresponds to an agent, map to knowledge representation **/
-	WeakHashMap<UUID, PilotState> pilots = new WeakHashMap<UUID, PilotState>();
-
 	/** Learning variables **/
 	boolean runLearning = false; // toggle on and off
 	String outputFile = "learning.txt"; //file name to track learning statistics
@@ -51,7 +48,6 @@ public class CatAdamAgent extends TeamClient {
 
 	
 	public Map<UUID, AbstractAction> getMovementStart(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects) {
-	
 		HashMap<UUID, AbstractAction> actions = new HashMap<UUID, AbstractAction>();
 
 		// loop through each ship
@@ -62,11 +58,11 @@ public class CatAdamAgent extends TeamClient {
 				 
 				if(runLearning == false){
 					//Learning is not actively happening, but still load pilots from knowledge file and genomes
-					if (!pilots.containsKey(ship.getId())){
+					if (!Planner.getInstance().pilots.containsKey(ship.getId())){
 						if(Genetic.getInstance().getBest() != null){ //based on previous knowledge - use best!
-							pilots.put(ship.getId(), new PilotState(space, Genetic.getInstance().getBest()));
+							Planner.getInstance().addPilot(ship.getId(), new PilotState(space, Genetic.getInstance().getBest()));
 						} else { //no knowledge wha wha
-							pilots.put(ship.getId(), new PilotState(space, Genetic.getInstance().getNextCandidate()));
+							Planner.getInstance().addPilot(ship.getId(), new PilotState(space, Genetic.getInstance().getNextCandidate()));
 						}
 					}
 				} else if (space.getCurrentTimestep() % evalTime == 0){ //handle fitness evaluations
@@ -74,7 +70,7 @@ public class CatAdamAgent extends TeamClient {
 
 					if (currentGenome == null){		//first initialization
 						currentGenome = Genetic.getInstance().getNextCandidate();
-						pilots.put(ship.getId(), new PilotState(space, currentGenome));
+						Planner.getInstance().addPilot(ship.getId(), new PilotState(space, currentGenome));
 						//System.out.println("Init genome");
 					}
 					else if (space.getCurrentTimestep() != 0) {
@@ -95,13 +91,14 @@ public class CatAdamAgent extends TeamClient {
 
 						if(space.getCurrentTimestep() < 20000){ // dont add genomes at game end
 							currentGenome = Genetic.getInstance().getNextCandidate();
-							pilots.put(ship.getId(), new PilotState(space, currentGenome));
+							Planner.getInstance().addPilot(ship.getId(), new PilotState(space, currentGenome));
 						}		
 					}
 				}
 
 				AbstractAction action;
-				action = pilots.get(ship.getId()).executePlan(space, ship);
+				//TODO: get action from planner class
+				action = Planner.getInstance().pilots.get(ship.getId()).executePlan(space, ship);
 
 				if (action == null) action = new DoNothingAction();
 				actions.put(ship.getId(), action);
@@ -125,19 +122,19 @@ public class CatAdamAgent extends TeamClient {
 				
 				if(runLearning == false){
 					//Learning is not actively happening, but still load pilots from knowledge file and genomes
-					if (!pilots.containsKey(ship.getId())){			//newly purchased ship
+					if (!Planner.getInstance().pilots.containsKey(ship.getId())){			//newly purchased ship
 						if(Genetic.getInstance().getBest() != null){ //based on previous knowledge - use best!
-							pilots.put(ship.getId(), new PilotState(space, Genetic.getInstance().getBest()));
+							Planner.getInstance().pilots.put(ship.getId(), new PilotState(space, Genetic.getInstance().getBest()));
 						} else { //no knowledge wha wha
-							pilots.put(ship.getId(), new PilotState(space, Genetic.getInstance().getNextCandidate()));
+							Planner.getInstance().pilots.put(ship.getId(), new PilotState(space, Genetic.getInstance().getNextCandidate()));
 						}
 					}
 
-				} else if (!pilots.containsKey(ship.getId())){		//newly purchased ship
-					pilots.put(ship.getId(), new PilotState(space, Genetic.getInstance().getNextCandidate()));
+				} else if (!Planner.getInstance().pilots.containsKey(ship.getId())){		//newly purchased ship
+					Planner.getInstance().pilots.put(ship.getId(), new PilotState(space, Genetic.getInstance().getNextCandidate()));
 				} 
 
-				pilots.get(ship.getId()).assessPlan(space, ship);
+				Planner.getInstance().pilots.get(ship.getId()).assessPlan(space, ship);
 			}
 		} 
 	}
@@ -148,9 +145,11 @@ public class CatAdamAgent extends TeamClient {
 	@Override
 	public void initialize(Toroidal2DPhysics space) {
 		//Do nothing~ covered in Genetic class
-//		if(Genetic.getInstance().getBest() != null){
-//			System.out.println("Best of knowledge: " + Genetic.getInstance().getBest().fitness);
-//		}
+		if(Genetic.getInstance().getBest() != null){
+			for (int i = 0; i < Genetic.getInstance().getBest().genes.length; ++i){
+				System.out.println("Gene: " + i + Genetic.getInstance().getBest().genes[i]);
+			}
+		}
 	}
 
 	/**
@@ -158,7 +157,7 @@ public class CatAdamAgent extends TeamClient {
 	 */
 	@Override
 	public void shutDown(Toroidal2DPhysics space) {
-		System.out.println("Ending game with: " + pilots.size() + " ships.");
+		System.out.println("Ending game with: " + Planner.getInstance().pilots.size() + " ships.");
 		if(runLearning == true){ //don't write out knowledge if not learning
 	      try {
 	          // find file
@@ -226,7 +225,7 @@ public class CatAdamAgent extends TeamClient {
 				if (actionableObject instanceof Ship) {
 					Ship ship = (Ship) actionableObject;
 	
-					purchase = pilots.get(ship.getId()).shop(space, ship, resourcesAvailable, purchaseCosts);	//ship gets a single purchase
+					purchase = Planner.getInstance().pilots.get(ship.getId()).shop(space, ship, resourcesAvailable, purchaseCosts);	//ship gets a single purchase
 					
 					if (purchase != null) {
 						purchases.put(ship.getId(), purchase);
@@ -256,7 +255,7 @@ public class CatAdamAgent extends TeamClient {
 	@Override
 	public Set<SpacewarGraphics> getGraphics() {
 		HashSet<SpacewarGraphics> graphics = new HashSet<SpacewarGraphics>();
-		for (PilotState state : pilots.values()) {
+		for (PilotState state : Planner.getInstance().pilots.values()) {
 			// uncomment to see the full graph
 			//graphics.addAll(graph.getAllGraphics());
 		 	graphics.addAll(state.getPathGraphics());

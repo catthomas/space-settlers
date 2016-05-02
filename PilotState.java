@@ -17,19 +17,16 @@ import stan5674.Genome;
  *
  */
 public class PilotState {
-	private int FUEL_COEF = 3000; 		//point of return was 2000
-	private int CARGO_CAPACITY = 3000; 	//Max resources to carry
-	private int MAX_SPEED = 200;				//speed of travel coefficient
-	private int FRONTIER = 1000;			//min distance between bases was 500
+	//tracks the current target of the agent - used for multi agent planning
+	private AbstractObject target;
+	private boolean chaser;
 	
 	//Values used for heuristics
-	private float FOV = 1250;			//Max distance to consider objects
+	public int FUEL_COEF = 3000; 		//point of return was 2000
+	public int CARGO_CAPACITY = 3000; 	//Max resources to carry
+	private int MAX_SPEED = 200;				//speed of travel coefficient
+	private int FRONTIER = 1000;			//min distance between bases was 500
 	private int MIN_BASE_FUEL = 1000;	//Minimum base fuel to be considered a candidate for refueling
-	private int EXE_TIME = 30;			//max time between planning
-	private int SURVEY_TIME = 100;		//survey space for good real estate after this many time steps
-	private int CLOSE_ESC = 200;			//object is considered particularly close
-	private int TRAJ_ANGLE = 50;			//when determining best prospect, prioritize objects within this angle
-	private double BEACON_DISCOUNT = .1;		//how much are we willing to trade distance for convenient beacons
 
 	private Ship vessel;
 	
@@ -40,10 +37,14 @@ public class PilotState {
 	private WeakHashMap<UUID, Node> nodes = new WeakHashMap<UUID, Node>();	//Holds nodes used in A* graph
 	private Stack<Node> path = new Stack<Node>(); //The path the vessel is following
 	private Set<SpacewarGraphics> graphics = new HashSet<SpacewarGraphics>(); //Holds markers for A* path
+	private float FOV = 1250;			//Max distance to consider objects
+	private int EXE_TIME = 30;			//max time between planning
+	private int SURVEY_TIME = 100;		//survey space for good real estate after this many time steps
+	private double BEACON_DISCOUNT = .1;		//how much are we willing to trade distance for convenient beacons
 	private int exe = this.EXE_TIME; 				//time spent executing current plan
 	private Position primeRealEstate;				//moost dense resource location
 
-	//constructor method
+	//constructor method - used when no learning has taken place
 	public PilotState(Toroidal2DPhysics space){
 		setFOV(space);
 		goal = null;
@@ -87,6 +88,31 @@ public class PilotState {
 			}
 		}
 
+	}
+	
+	//Returns the target of the vessel
+	public AbstractObject getTarget(){
+		return target;
+	}
+	
+	//Sets the target of the vessel
+	public void setTarget(AbstractObject newTarget){
+		this.target = newTarget;
+	}
+	
+	//Returns whether the ship is a 'chaser' or not
+	public boolean getChaser(){
+		return chaser;
+	}
+	
+	//Sets whether the ship is a 'chaser' or not
+	public void setChaser(boolean value){
+		this.chaser = value;
+	}
+	
+	//Returns the vessel for the pilot
+	public Ship getVessel(){
+		return vessel;
 	}
 
 	//call in agent init to set FOV radius of pilot
@@ -168,8 +194,8 @@ public class PilotState {
 		//System.out.println("~~~~~~Vessel: " + vessel.getPosition() + "~~~~~~~");
 		Set<AbstractObject> objects = this.objectsInFov(space, vessel);
 		AbstractObject base = this.findNearestBase(space, vessel, false);		//no place like home
-		AbstractObject beacon = this.findNearestBeacon(space, vessel); 			//or a gas station
-		AbstractObject refuel = this.findNearestRefuel(space, vessel);			//Just in case...
+		AbstractObject beacon = this.findNearestBeacon(space, vessel, null); 			//or a gas station
+		AbstractObject refuel = this.findNearestRefuel(space, vessel, null);			//Just in case...
 		int maxDegree = 50;
 		int degree;
 		Set<AbstractObject> other;
@@ -437,8 +463,9 @@ public class PilotState {
 	}
 
 	//finds the closest fuel beacon
-	public Beacon findNearestBeacon(Toroidal2DPhysics space, Ship vessel){
+	public Beacon findNearestBeacon(Toroidal2DPhysics space, Ship vessel, Set<AbstractObject> targets){
 		Set<Beacon> beacons = space.getBeacons();
+		beacons.removeAll(targets);
 		double shortest = Double.POSITIVE_INFINITY;
 		Position location = vessel.getPosition();
 		double dist;
@@ -488,12 +515,12 @@ public class PilotState {
 	}
 
 	//find nearest refueling station, either base or beacon 
-	public AbstractObject findNearestRefuel(Toroidal2DPhysics space, Ship vessel){
+	public AbstractObject findNearestRefuel(Toroidal2DPhysics space, Ship vessel, Set<AbstractObject> targets){
 		//System.out.println("~~~~~FIND NEAREST REFUEL~~~~~");
 		Position location = vessel.getPosition();
 
 		Base nearestBase = findNearestBase(space, vessel, true);
-		Beacon nearestBeacon = findNearestBeacon(space, vessel);
+		Beacon nearestBeacon = findNearestBeacon(space, vessel, targets);
 		
 		if(nearestBeacon != null && nearestBase == null){
 			return nearestBeacon;
@@ -519,41 +546,8 @@ public class PilotState {
 
 	//Pilot's instincts (failsafe actions)
 	public AbstractAction decideAction(Toroidal2DPhysics space, Ship vessel){
-		Position currentPosition = vessel.getPosition();
-		AbstractObject goal = null;
-
-		//get refueled
-		if (vessel.getEnergy() < FUEL_COEF){
-			//System.out.println("~~~~~MOVING TO REFUEL~~~~~");
-			goal = findNearestRefuel(space, vessel);
-
-			AbstractAction newAction = null;
-			
-			// if no object found, skip turn
-			if(goal == null) {
-				newAction = new DoNothingAction(); 
-			} else {
-				newAction = optimalApproach(space, currentPosition, goal.getPosition());
-			};
-
-			return newAction;
-		}
-		//return resources to base
-		if (vessel.getResources().getTotal() > CARGO_CAPACITY){
-			//System.out.println("~~~~~MOVING TO BASE~~~~~");
-			goal = findNearestBase(space, vessel, false);
-
-			return optimalApproach(space, currentPosition, goal.getPosition());
-		}
-
-
-		//System.out.println("~~~~~MOVING TO PROSPECT~~~~~");
-		//goal = getProspectWithinFOVAndTrajectory(space, vessel, TRAJ_ANGLE); //favor within certain angle
-		//if(goal == null){
-			goal = findNearestProspect(space, vessel);
-		//}
-
-		return optimalApproach(space, currentPosition, goal.getPosition());
+		//Asks the Planner class for an action
+		return Planner.getInstance().getPilotAction(space, vessel);
 	};
 
 	/**
@@ -567,7 +561,7 @@ public class PilotState {
 		AbstractObject temp = null;
 		if (vessel.getEnergy() < this.FUEL_COEF){
 			//System.out.println("~~~~~Planning TO REFUEL~~~~~");
-			temp = findNearestRefuel(space, vessel);
+			temp = findNearestRefuel(space, vessel, null);
 			if(temp != null){
 				goal = this.nodes.get(temp.getId());
 			}
@@ -583,7 +577,7 @@ public class PilotState {
 			//System.out.println("~~~~~Planning TO PROSPECT~~~~~");
 			//temp = getProspectWithinFOVAndTrajectory(space, vessel, TRAJ_ANGLE); //favor within certain angle
 			if(temp == null){
-				temp = findNearestProspect(space, vessel);
+				temp = findNearestProspect(space, vessel, null);
 			}
 			if(temp != null){
 				goal = this.nodes.get(temp.getId());
@@ -591,6 +585,7 @@ public class PilotState {
 		}
 		if(goal != null){
 			this.planPath(space, start, goal);	//find best path to goal
+			this.target = goal.object; //update target
 		} else {
 			//System.out.println("~~~~~~~~~~Goal Not Found~~~~~~~");
 		}
@@ -650,8 +645,9 @@ public class PilotState {
 	};
 
 	//Returns nearest mineable asteroid to ship. 
-	public Asteroid findNearestProspect(Toroidal2DPhysics space, Ship vessel){
+	public Asteroid findNearestProspect(Toroidal2DPhysics space, Ship vessel, Set<AbstractObject> targets){
 		List<Asteroid> prospects = getMinableAsteroids(space);
+		prospects.removeAll(targets);
 		double shortest = Double.POSITIVE_INFINITY;
 		Position location = vessel.getPosition();
 		double dist;
