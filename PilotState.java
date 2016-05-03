@@ -546,8 +546,41 @@ public class PilotState {
 
 	//Pilot's instincts (failsafe actions)
 	public AbstractAction decideAction(Toroidal2DPhysics space, Ship vessel){
-		//Asks the Planner class for an action
-		return Planner.getInstance().getPilotAction(space, vessel);
+		Position currentPosition = vessel.getPosition();
+		AbstractObject goal = null;
+
+		//get refueled
+		if (vessel.getEnergy() < FUEL_COEF){
+			//System.out.println("~~~~~MOVING TO REFUEL~~~~~");
+			goal = findNearestRefuel(space, vessel, null);
+
+			AbstractAction newAction = null;
+			
+			// if no object found, skip turn
+			if(goal == null) {
+				newAction = new DoNothingAction(); 
+			} else {
+				newAction = optimalApproach(space, currentPosition, goal.getPosition());
+			};
+
+			return newAction;
+		}
+		//return resources to base
+		if (vessel.getResources().getTotal() > CARGO_CAPACITY){
+			//System.out.println("~~~~~MOVING TO BASE~~~~~");
+			goal = findNearestBase(space, vessel, false);
+
+			return optimalApproach(space, currentPosition, goal.getPosition());
+		}
+
+
+		//System.out.println("~~~~~MOVING TO PROSPECT~~~~~");
+		//goal = getProspectWithinFOVAndTrajectory(space, vessel, TRAJ_ANGLE); //favor within certain angle
+		//if(goal == null){
+			goal = findNearestProspect(space, vessel, null);
+		//}
+
+		return optimalApproach(space, currentPosition, goal.getPosition());
 	};
 
 	/**

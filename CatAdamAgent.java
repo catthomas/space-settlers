@@ -1,24 +1,16 @@
 package stan5674;
 
-import stan5674.Genetic;
-import stan5674.Genome;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.ObjectOutputStream;
-import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.WeakHashMap;
 
 import spacesettlers.actions.AbstractAction;
 import spacesettlers.actions.DoNothingAction;
 import spacesettlers.actions.PurchaseCosts;
 import spacesettlers.actions.PurchaseTypes;
-import spacesettlers.clients.ImmutableTeamInfo;
+//import spacesettlers.clients.ImmutableTeamInfo;
 import spacesettlers.clients.TeamClient;
 import spacesettlers.graphics.SpacewarGraphics;
 import spacesettlers.objects.AbstractActionableObject;
@@ -38,103 +30,30 @@ import spacesettlers.simulator.Toroidal2DPhysics;
  * @author amy
  */
 public class CatAdamAgent extends TeamClient {
-	/** Learning variables **/
-	boolean runLearning = false; // toggle on and off
-	String outputFile = "learning.txt"; //file name to track learning statistics
-	int evalTime = 2000;			//time steps to evaluate a genome
-	Genome currentGenome = null;	//the currently evaluated Genome
-	double totalScore = 0;			//used to calculate fitnesses
-	int popSizeToEvolve = 40; 		//evolve once this amount of genomes sampled
-
 	
 	public Map<UUID, AbstractAction> getMovementStart(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects) {
 		HashMap<UUID, AbstractAction> actions = new HashMap<UUID, AbstractAction>();
 
 		// loop through each ship
 		for (AbstractObject actionable :  actionableObjects) {
-			//System.out.println(Genetic.getInstance().getBest());
 			if (actionable instanceof Ship) {
-				Ship ship = (Ship) actionable;
-				 
-				if(runLearning == false){
-					//Learning is not actively happening, but still load pilots from knowledge file and genomes
-					if (!Planner.getInstance().pilots.containsKey(ship.getId())){
-						if(Genetic.getInstance().getBest() != null){ //based on previous knowledge - use best!
-							Planner.getInstance().addPilot(ship.getId(), new PilotState(space, Genetic.getInstance().getBest()));
-						} else { //no knowledge wha wha
-							Planner.getInstance().addPilot(ship.getId(), new PilotState(space, Genetic.getInstance().getNextCandidate()));
-						}
-					}
-				} else if (space.getCurrentTimestep() % evalTime == 0){ //handle fitness evaluations
-					//System.out.println("Evaluating genome @:" + space.getCurrentTimestep());
-
-					if (currentGenome == null){		//first initialization
-						currentGenome = Genetic.getInstance().getNextCandidate();
-						Planner.getInstance().addPilot(ship.getId(), new PilotState(space, currentGenome));
-						//System.out.println("Init genome");
-					}
-					else if (space.getCurrentTimestep() != 0) {
-						double fitness= 0;
-
-						for(ImmutableTeamInfo info : space.getTeamInfo()){
-							if(info.getTeamName().equals(this.getTeamName())){
-								fitness = info.getScore() - this.totalScore; //difference in score is genome's fitness
-								this.totalScore = info.getScore();
-								Genetic.getInstance().tested();		//increment count of fitted genomes
-							}
-						}
-						//System.out.println("Evaluation finished for " + this.getTeamName()+ " with fitness: "+ fitness);
-						currentGenome.setFitness((float)fitness);		//genome uses float for fitness...
-						Genetic.getInstance().testedCount++;	//increment testedcount
-						this.testForEvolve(); //See if time to evolve, evolve if ready
-
-
-						if(space.getCurrentTimestep() < 20000){ // dont add genomes at game end
-							currentGenome = Genetic.getInstance().getNextCandidate();
-							Planner.getInstance().addPilot(ship.getId(), new PilotState(space, currentGenome));
-						}		
-					}
-				}
-
-				AbstractAction action;
-				//TODO: get action from planner class
-				action = Planner.getInstance().pilots.get(ship.getId()).executePlan(space, ship);
-
-				if (action == null) action = new DoNothingAction();
-				actions.put(ship.getId(), action);
-				
+				//TODO: have this rely on space command!
 			} else {
 				// it is a base.  Heuristically decide when to use the shield (TODO)
 				actions.put(actionable.getId(), new DoNothingAction());
 			}
 		} 
-		//System.out.println("There are " + pilots.size() + " ships");
 		return actions;
 	}
 
 	@Override
 	public void getMovementEnd(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects) {
-		//do goal arrival checking here?
 		for (AbstractObject actionable :  actionableObjects) {
-			//System.out.println(actionable);
 			if (actionable instanceof Ship) {
 				Ship ship = (Ship) actionable;
-				
-				if(runLearning == false){
-					//Learning is not actively happening, but still load pilots from knowledge file and genomes
-					if (!Planner.getInstance().pilots.containsKey(ship.getId())){			//newly purchased ship
-						if(Genetic.getInstance().getBest() != null){ //based on previous knowledge - use best!
-							Planner.getInstance().pilots.put(ship.getId(), new PilotState(space, Genetic.getInstance().getBest()));
-						} else { //no knowledge wha wha
-							Planner.getInstance().pilots.put(ship.getId(), new PilotState(space, Genetic.getInstance().getNextCandidate()));
-						}
-					}
-
-				} else if (!Planner.getInstance().pilots.containsKey(ship.getId())){		//newly purchased ship
-					Planner.getInstance().pilots.put(ship.getId(), new PilotState(space, Genetic.getInstance().getNextCandidate()));
+				if (!SpaceCommand.getInstance().getShips().containsKey(ship.getId())){ //newly purchased ship - add
+					SpaceCommand.getInstance().addShip(ship.getId(), new ShipState());
 				} 
-
-				Planner.getInstance().pilots.get(ship.getId()).assessPlan(space, ship);
 			}
 		} 
 	}
@@ -144,56 +63,12 @@ public class CatAdamAgent extends TeamClient {
 	 */
 	@Override
 	public void initialize(Toroidal2DPhysics space) {
-		//Do nothing~ covered in Genetic class
-		if(Genetic.getInstance().getBest() != null){
-			for (int i = 0; i < Genetic.getInstance().getBest().genes.length; ++i){
-				System.out.println("Gene: " + i + Genetic.getInstance().getBest().genes[i]);
-			}
-		}
+		//do nothing
 	}
 
-	/**
-	 * Writes the current genetic instance to a file at end of game. 
-	 */
 	@Override
 	public void shutDown(Toroidal2DPhysics space) {
-		System.out.println("Ending game with: " + Planner.getInstance().pilots.size() + " ships.");
-		if(runLearning == true){ //don't write out knowledge if not learning
-	      try {
-	          // find file
-	          FileOutputStream out = new FileOutputStream("stan5674/"+Genetic.getInstance().fileName);
-	          ObjectOutputStream oout = new ObjectOutputStream(out);
-	          
-	          //Write knowledge to the file
-	          oout.writeObject(Genetic.getInstance());
-	          oout.flush();
-
-	          //Close object write stream
-	          oout.close();
-	          out.close();  
-	       } catch (Exception ex) {
-	          //do nothing
-	       }
-		}
-	}
-
-	public void testForEvolve(){
-		try{	     
-	          if(Genetic.getInstance().testedCount >= popSizeToEvolve){
-	          	//set tested count here, just in case other agents also test for evolve
-	          	Genetic.getInstance().testedCount = 0;
-	          	//Print fitness to file
-	        	PrintWriter print = new PrintWriter(new FileOutputStream(new File("stan5674/"+outputFile), true));
-	  	  		print.append(""+Genetic.getInstance().generation+","+ Genetic.getInstance().trackFitness()+","+ Genetic.getInstance().findBest().fitness +"\n"); //write generation number, score
-	  	  		print.close();
-	  	  		
-	  	  		//evolve
-	        	Genetic.getInstance().evolve(); 
-	        	//System.out.println("~~~~~~~~~~~~~~EVOLVED~~~~~~~~~~~~~~~");
-	          }
-	        } catch (Exception ex) {
-	        	//do nothing
-	        }
+		//do nothing
 	}
 
 	@Override
@@ -224,8 +99,8 @@ public class CatAdamAgent extends TeamClient {
 			for (AbstractActionableObject actionableObject : actionableObjects) {
 				if (actionableObject instanceof Ship) {
 					Ship ship = (Ship) actionableObject;
-	
-					purchase = Planner.getInstance().pilots.get(ship.getId()).shop(space, ship, resourcesAvailable, purchaseCosts);	//ship gets a single purchase
+					//TODO: redo THIS ENTIRE METHOD OMG
+					//purchase = SpaceCommand.getInstance().getShips().get(ship.getId()).shop(space, ship, resourcesAvailable, purchaseCosts);	//ship gets a single purchase
 					
 					if (purchase != null) {
 						purchases.put(ship.getId(), purchase);
@@ -255,12 +130,6 @@ public class CatAdamAgent extends TeamClient {
 	@Override
 	public Set<SpacewarGraphics> getGraphics() {
 		HashSet<SpacewarGraphics> graphics = new HashSet<SpacewarGraphics>();
-		for (PilotState state : Planner.getInstance().pilots.values()) {
-			// uncomment to see the full graph
-			//graphics.addAll(graph.getAllGraphics());
-		 	graphics.addAll(state.getPathGraphics());
-		 }
-
 		HashSet<SpacewarGraphics> newGraphicsClone = (HashSet<SpacewarGraphics>) graphics.clone();
 		graphics.clear();
 		return newGraphicsClone;
