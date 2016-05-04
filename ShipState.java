@@ -119,6 +119,19 @@ public class ShipState {
 			return nearestProspect;
 		} //end getNearestProspect 
 		
+		/** Returns the highest value asteroid in the game - global data **/
+		public Asteroid getDiamond(Toroidal2DPhysics space){
+			List<Asteroid> prospects = getMinableAsteroids(space);
+			Asteroid diamond = prospects.get(0);
+			
+			for (Asteroid prospect : prospects){
+				if(prospect.getResources().getTotal() > diamond.getResources().getTotal()){
+					diamond = prospect;
+				}
+			}
+			return diamond;
+		} //end getDiamond
+		
 		/** Helper function to only return asteroids with resources **/
 		public List<Asteroid> getMinableAsteroids(Toroidal2DPhysics space){
 			List<Asteroid> asteroids = new ArrayList<Asteroid>(space.getAsteroids());
@@ -131,4 +144,5 @@ public class ShipState {
 			}
 			return minable;
 		} // end getMinableAsteroids
+	
 } //end ShipState class

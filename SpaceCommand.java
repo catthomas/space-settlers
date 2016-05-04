@@ -24,7 +24,12 @@ public class SpaceCommand {
 	/** Singleton class, will only ever have one instance in the program */
 	private static SpaceCommand singleton = new SpaceCommand();
 	
-	/** Heuristic constants - obtained from learning **/
+	/** Enum for high level strategies **/
+	public enum Strategy {
+		FREE_MINE, EXPAND_EMPIRE, BUILD_FLEET
+	}
+	
+	/** Action constants **/
 	private final double MAX_SPEED = 88; //speed of travel coefficient
 	private final double CARGO_CAPACITY = 1500; //max amount of resources to carry
 	private final double FUEL_COEF = 45; //min amount of fuel to seek refuel
@@ -33,6 +38,7 @@ public class SpaceCommand {
 	/** The ultimate goal of the planner - receive a team score of one million */
 //	private final double goalScore = 1000000;
 //	private final int goalShips = 5;
+	private Strategy strategy;
 	
 	/** Tracks the pilot states of all instantiated ships */
 	private HashMap<UUID, ShipState> pilots;
@@ -42,6 +48,7 @@ public class SpaceCommand {
 	SpaceCommand() {
 		this.bases = new HashMap<UUID, BaseState>();
 		this.pilots = new HashMap<UUID, ShipState>();
+		this.strategy = Strategy.FREE_MINE; //default to free mine
 	} //end Planner constructor
 	
 	/** Static 'instance' method to get singleton */
@@ -77,6 +84,14 @@ public class SpaceCommand {
 	/** Returns a Map of ships and their assigned actions, based on the current high-level strategy **/	
 	public Map<UUID, AbstractAction> getPilotCommands(Toroidal2DPhysics space){
 		decideStrategy();
+		switch (strategy){
+			case FREE_MINE:
+				break;
+			case EXPAND_EMPIRE:
+				break;
+			case BUILD_FLEET:
+				break;
+		}
 		return null;
 	} //end getPilotCommands
 	
@@ -88,7 +103,7 @@ public class SpaceCommand {
 	/** Action for a ship to collect a beacon **/
 	public AbstractAction goToBeacon(Toroidal2DPhysics space, ShipState ship){
 		//Target nearest beacon
-		Beacon beacon = ship.getNearestBeacon(space, null); //TODO: call get targets here?
+		Beacon beacon = ship.getNearestBeacon(space, getTargets(ship.getVessel().getId()));
 		
 		//Check preconditions of action
 		if(ship.needsFuel(FUEL_COEF) && !isTargeted(beacon, ship.getVessel().getId()) && beacon != null){
@@ -116,18 +131,37 @@ public class SpaceCommand {
 	/** Action for a ship to head to a minable asteroid **/
 	public MoveAction goToProspect(Toroidal2DPhysics space, ShipState ship){
 		//Target nearest prospect
-		Asteroid prospect = ship.getNearestProspect(space, null); //TODO: change to get Targets?
+		Asteroid prospect = ship.getNearestProspect(space, getTargets(ship.getVessel().getId()));
 		
-		// precondition - does not need fuel, not at max capacity
+		// precondition - does not need fuel, not at max capacity, asteroid exists
+		if(!ship.needsFuel(FUEL_COEF) && !ship.atMaxCargo(CARGO_CAPACITY) 
+				&& prospect != null && !isTargeted(prospect, ship.getVessel().getId())){
+			//Set effect
+			ship.setTarget(prospect);
+			return optimalApproach(space, ship.getVessel(), ship.getVessel().getPosition(), prospect.getPosition());
+		}
 		return null;
 	} //end goToProspect
 	
-	public MoveAction goToDiamond(ShipState ship){
+	/** Action for a ship to head to the HIGHEST value asteroid **/
+	public MoveAction goToDiamond(Toroidal2DPhysics space, ShipState ship){
+		//Target nearest prospect
+		Asteroid prospect = ship.getDiamond(space);
+		
+		// precondition - does not need fuel, not at max capacity, asteroid exists
+		if(!ship.needsFuel(FUEL_COEF) && !ship.atMaxCargo(CARGO_CAPACITY) 
+				&& prospect != null && !isTargeted(prospect, ship.getVessel().getId())){
+			//Set effect
+			ship.setTarget(prospect);
+			return optimalApproach(space, ship.getVessel(), ship.getVessel().getPosition(), prospect.getPosition());
+		}
 		return null;
-	} //end goToHighValueProspect
+	} //end goToDiamond
 	
 	/** Action for a ship to go to a less populated point in the frontier **/ 
 	public MoveAction goToFrontier(ShipState ship){
+		// precondition - does not need fuel, not at max capacity, locations exists
+		//TODO - i dont even know
 		return null;
 	} //end goToFrontier
 	
@@ -162,6 +196,5 @@ public class SpaceCommand {
 			}
 		}
 		return targets;
-	} //end getTargets
-		
+	} //end getTargets		
 } //end SpaceCommand class

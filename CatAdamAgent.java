@@ -52,7 +52,7 @@ public class CatAdamAgent extends TeamClient {
 			if (actionable instanceof Ship) {
 				Ship ship = (Ship) actionable;
 				if (!SpaceCommand.getInstance().getShips().containsKey(ship.getId())){ //newly purchased ship - add
-					SpaceCommand.getInstance().addShip(ship.getId(), new ShipState());
+					SpaceCommand.getInstance().addShip(ship.getId(), new ShipState(ship));
 				} 
 			}
 		} 
