@@ -154,14 +154,12 @@ public class SpaceCommand {
 							purchases.clear();
 							purchases.put(vessel.getId(), PurchaseTypes.BASE);
 							this.goldmine = null;
-							System.out.println("BOUGHT A GOLDMINE BASE");
 							return purchases;
 						}
 						
 						//Find place to purchase on frontier
 						if(vessel != null && purchases.size() < 1 && space.findShortestDistance(vessel.getPosition(), ship.getNearestBase(space, vessel, false, MIN_BASE_FUEL).getPosition()) >= FRONTIER){
 							purchases.put(vessel.getId(), PurchaseTypes.BASE);
-							System.out.println("BOUGHT A REGULAR BASE");
 						}
 					}
 					return purchases;
