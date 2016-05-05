@@ -7,7 +7,6 @@ import java.util.Set;
 import java.util.UUID;
 
 import spacesettlers.actions.AbstractAction;
-import spacesettlers.actions.DoNothingAction;
 import spacesettlers.actions.PurchaseCosts;
 import spacesettlers.actions.PurchaseTypes;
 //import spacesettlers.clients.ImmutableTeamInfo;
@@ -30,19 +29,27 @@ import spacesettlers.simulator.Toroidal2DPhysics;
  * @author amy
  */
 public class CatAdamAgent extends TeamClient {
+	/** Central commander for the team */
+	SpaceCommand spaceCommand;
 	
 	public Map<UUID, AbstractAction> getMovementStart(Toroidal2DPhysics space, Set<AbstractActionableObject> actionableObjects) {
-		HashMap<UUID, AbstractAction> actions = new HashMap<UUID, AbstractAction>();
-
-		// loop through each ship
 		for (AbstractObject actionable :  actionableObjects) {
 			if (actionable instanceof Ship) {
-				//TODO: have this rely on space command!
-			} else {
-				// it is a base.  Heuristically decide when to use the shield (TODO)
-				actions.put(actionable.getId(), new DoNothingAction());
+				Ship ship = (Ship) actionable;
+				if (!spaceCommand.getShips().containsKey(ship.getId())){ //new ship - add
+					spaceCommand.addShip(ship.getId(), new ShipState(ship.getId()));
+				} 
+			}
+			if (actionable instanceof Base) {
+				Base base = (Base) actionable;
+				if (!spaceCommand.getBases().containsKey(base.getId())){ //new base- add
+					spaceCommand.addBase(base.getId(), new BaseState(base));
+				} 
 			}
 		} 
+		Map<UUID, AbstractAction> actions = spaceCommand.getTeamCommands(space);
+		spaceCommand.updateGraphics(space);
+
 		return actions;
 	}
 
@@ -51,8 +58,14 @@ public class CatAdamAgent extends TeamClient {
 		for (AbstractObject actionable :  actionableObjects) {
 			if (actionable instanceof Ship) {
 				Ship ship = (Ship) actionable;
-				if (!SpaceCommand.getInstance().getShips().containsKey(ship.getId())){ //newly purchased ship - add
-					SpaceCommand.getInstance().addShip(ship.getId(), new ShipState(ship));
+				if (!spaceCommand.getShips().containsKey(ship.getId())){ //new ship - add
+					spaceCommand.addShip(ship.getId(), new ShipState(ship.getId()));
+				} 
+			}
+			if (actionable instanceof Base) {
+				Base base = (Base) actionable;
+				if (!spaceCommand.getBases().containsKey(base.getId())){ //new base- add
+					spaceCommand.addBase(base.getId(), new BaseState(base));
 				} 
 			}
 		} 
@@ -64,6 +77,7 @@ public class CatAdamAgent extends TeamClient {
 	@Override
 	public void initialize(Toroidal2DPhysics space) {
 		//do nothing
+		this.spaceCommand = new SpaceCommand();
 	}
 
 	@Override
@@ -80,37 +94,7 @@ public class CatAdamAgent extends TeamClient {
 			Set<AbstractActionableObject> actionableObjects, 
 			ResourcePile resourcesAvailable, 
 			PurchaseCosts purchaseCosts) {
-		HashMap<UUID, PurchaseTypes> purchases = new HashMap<UUID, PurchaseTypes>();
-		PurchaseTypes purchase=null;
-		
-		 // can I buy a ship?
-		 if (purchaseCosts.canAfford(PurchaseTypes.SHIP, resourcesAvailable)) {
-		 	for (AbstractActionableObject actionableObject : actionableObjects) {
-		 		if (actionableObject instanceof Base) {
-		 			Base base = (Base) actionableObject;
-		 			purchases.put(base.getId(), PurchaseTypes.SHIP);
-		 			purchase = PurchaseTypes.SHIP;
-		 			break;
-		 		}
-		 	}
-		 }
-
-		if(purchase == null){
-			for (AbstractActionableObject actionableObject : actionableObjects) {
-				if (actionableObject instanceof Ship) {
-					Ship ship = (Ship) actionableObject;
-					//TODO: redo THIS ENTIRE METHOD OMG
-					//purchase = SpaceCommand.getInstance().getShips().get(ship.getId()).shop(space, ship, resourcesAvailable, purchaseCosts);	//ship gets a single purchase
-					
-					if (purchase != null) {
-						purchases.put(ship.getId(), purchase);
-						break;
-					}
-				}		
-			}
-		}
-
-		return purchases;
+		return spaceCommand.getTeamPurchases(space, resourcesAvailable, purchaseCosts);
 	}
 
 	/**
@@ -129,8 +113,8 @@ public class CatAdamAgent extends TeamClient {
 	
 	@Override
 	public Set<SpacewarGraphics> getGraphics() {
-		HashSet<SpacewarGraphics> graphics = new HashSet<SpacewarGraphics>();
-		HashSet<SpacewarGraphics> newGraphicsClone = (HashSet<SpacewarGraphics>) graphics.clone();
+		HashSet<SpacewarGraphics> graphics = spaceCommand.getGraphics();
+		HashSet<SpacewarGraphics> newGraphicsClone = ((HashSet<SpacewarGraphics>) graphics.clone());
 		graphics.clear();
 		return newGraphicsClone;
 	}
