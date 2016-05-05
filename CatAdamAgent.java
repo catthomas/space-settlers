@@ -42,8 +42,8 @@ public class CatAdamAgent extends TeamClient {
 			}
 			if (actionable instanceof Base) {
 				Base base = (Base) actionable;
-				if (!spaceCommand.getBases().containsKey(base.getId())){ //new base- add
-					spaceCommand.addBase(base.getId(), new BaseState(base));
+				if (!spaceCommand.getBases().contains(base)){ //new base- add
+					spaceCommand.addBase(base);
 				} 
 			}
 		} 
@@ -64,8 +64,8 @@ public class CatAdamAgent extends TeamClient {
 			}
 			if (actionable instanceof Base) {
 				Base base = (Base) actionable;
-				if (!spaceCommand.getBases().containsKey(base.getId())){ //new base- add
-					spaceCommand.addBase(base.getId(), new BaseState(base));
+				if (!spaceCommand.getBases().contains(base)){ //new base- add
+					spaceCommand.addBase(base);
 				} 
 			}
 		} 

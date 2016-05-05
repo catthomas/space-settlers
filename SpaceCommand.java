@@ -1,6 +1,10 @@
 package stan5674;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.HashMap;
@@ -44,16 +48,17 @@ public class SpaceCommand {
 	private final int MIN_SHIPS = 5;
 	private Strategy strategy;
 	private Planner planner;
+	private Position goldmine;
 	
-	/** Tracks the pilot states of all instantiated ships */
+	/** Tracks the pilot states of all instantiated ships, and current roles */
 	private HashMap<UUID, ShipState> pilots;
-	private HashMap<UUID, BaseState> bases;
+	private List<Base> bases;
 	
 	/** Default constructor, creates a space command class */ 
 	SpaceCommand() {
-		this.bases = new HashMap<UUID, BaseState>();
+		this.bases = new LinkedList<Base>();
 		this.pilots = new HashMap<UUID, ShipState>();
-		this.strategy = Strategy.FREE_MINE; //default to free mine at beginning
+		this.strategy = Strategy.BUILD_FLEET; //default to free mine at beginning
 		this.planner = new Planner(GOAL_SHIPS, GOAL_BASES, MIN_SHIPS, this);
 	} //end Planner constructor
 	
@@ -65,16 +70,24 @@ public class SpaceCommand {
 	/** Adds a new pilot **/
 	public void addShip(UUID shipId, ShipState pilot){
 		pilots.put(shipId, pilot);
+		
+		if(pilots.size() == 1){
+			//Set first ships to be the diamond chaser!
+			pilots.get(shipId).setDiamondChaser(true);		
+		} else if(pilots.size() == 2){
+			//Set second ship to be the gold digger!
+			pilots.get(shipId).setGoldDigger(true);
+		}
 	} //end addPilot
 	
 	/** Getter for hashmap of bases **/
-	public HashMap<UUID, BaseState> getBases(){
+	public List<Base> getBases(){
 		return bases;
 	} //end getBases
 
 	/** Adds a new base **/
-	public void addBase(UUID baseId, BaseState base){
-		bases.put(baseId, base);
+	public void addBase(Base base){
+		bases.add(base);
 	} //end addBase
 	
 	/** Uses PDDL searching to decide which high level strategy to follow **/ 
@@ -102,15 +115,24 @@ public class SpaceCommand {
 			decideStrategy();
 		}
 		
+		Map<UUID, AbstractAction> actions = null;
 		switch (strategy){
 			case FREE_MINE:
-				return freeMine(space);
+				actions = freeMine(space);
+				break;
 			case EXPAND_EMPIRE:
-				return expandEmpire(space);
+				actions = expandEmpire(space);
+				break;
 			case BUILD_FLEET:
-				return buildFleet(space);
+				actions = buildFleet(space);
+				break;
 		}
-		return null;
+		
+		if(actions == null){
+			actions = getBasicActions(space); //fail safe
+		}
+		
+		return actions;
 	} //end getPilotCommands
 	
 	/** Returns list of purchases for all objects, purchase ability based on high level strategy **/
@@ -121,25 +143,40 @@ public class SpaceCommand {
 			case FREE_MINE:
 				return purchases; //Free mine does not make purchases
 			case EXPAND_EMPIRE:
-				//Buy base at appropriate distance
+				//Buy base at appropriate frontier distance
 				if(prices.canAfford(PurchaseTypes.BASE, funds)){
 					for(ShipState ship : pilots.values()){
 						Ship vessel = (Ship)space.getObjectById(ship.getVessel());
-						if(space.findShortestDistance(vessel.getPosition(), ship.getNearestBase(space, vessel, false, MIN_BASE_FUEL).getPosition()) >= FRONTIER){
+						
+						//Prioritize purchasing a base at a gold mine
+						if(vessel != null && ship.isGoldDigger() && this.goldmine != null
+								&& space.findShortestDistance(vessel.getPosition(), goldmine) <= 100){
+							purchases.clear();
 							purchases.put(vessel.getId(), PurchaseTypes.BASE);
+							this.goldmine = null;
+							System.out.println("BOUGHT A GOLDMINE BASE");
 							return purchases;
 						}
+						
+						//Find place to purchase on frontier
+						if(vessel != null && purchases.size() < 1 && space.findShortestDistance(vessel.getPosition(), ship.getNearestBase(space, vessel, false, MIN_BASE_FUEL).getPosition()) >= FRONTIER){
+							purchases.put(vessel.getId(), PurchaseTypes.BASE);
+							System.out.println("BOUGHT A REGULAR BASE");
+						}
 					}
+					return purchases;
 				}
-				
+				break;
 			case BUILD_FLEET:
 				//Buy a ship if you can afford it
 				 if (prices.canAfford(PurchaseTypes.SHIP, funds)) {
-				 	for(BaseState base : bases.values()){
-				 		purchases.put(base.getBase().getId(), PurchaseTypes.SHIP);
+				 	Base base = bases.get(0);
+				 	if(base != null){
+				 		purchases.put(base.getId(), PurchaseTypes.SHIP);
 				 		return purchases;
 				 	}
 				 }
+				 break;
 		}
 
 		return purchases;
@@ -189,12 +226,23 @@ public class SpaceCommand {
 		return null;
 	} //end buildFleet
 	
+	/** Returns the basic mine actions for every ship and base **/
 	public HashMap<UUID, AbstractAction> getBasicActions(Toroidal2DPhysics space){
 		HashMap<UUID, AbstractAction> actions = new HashMap<UUID, AbstractAction>();
 		
 		//Simplest strategy - prioritize mining for ships
 		for(ShipState state : pilots.values()){
-			AbstractAction action = goToProspect(space, state);
+			AbstractAction action = null;
+			
+			if(this.strategy == Strategy.EXPAND_EMPIRE && state.isGoldDigger()){
+				action = goToGoldmine(space, state);
+			}
+			
+			if( action == null && state.isDiamondChaser()){
+				action = goToDiamond(space, state);
+			} else if(action == null) {
+			  action = goToProspect(space, state);
+			}
 			
 			if(action == null){
 				action = goToBase(space, state);
@@ -212,8 +260,8 @@ public class SpaceCommand {
 
 
 		//All bases do nothing
-		for (BaseState base : bases.values()){
-			actions.put(base.getBase().getId(), new DoNothingAction());
+		for (Base base : bases){
+			actions.put(base.getId(), new DoNothingAction());
 		}
 
 		return actions;
@@ -293,7 +341,7 @@ public class SpaceCommand {
 		
 		// precondition - does not need fuel, not at max capacity, asteroid exists
 		if(!ship.needsFuel(FUEL_COEF, vessel) && !ship.atMaxCargo(CARGO_CAPACITY, vessel) 
-				&& prospect != null && !isTargeted(prospect, ship.getVessel())){
+				&& prospect != null){
 			//Set effect
 			ship.setTarget(prospect);
 			return optimalApproach(space, vessel, vessel.getPosition(), prospect.getPosition());
@@ -302,11 +350,25 @@ public class SpaceCommand {
 	} //end goToDiamond
 	
 	/** Action for a ship to go to a less populated point in the frontier **/ 
-	public MoveAction goToFrontier(ShipState ship){
+	public MoveAction goToGoldmine(Toroidal2DPhysics space, ShipState ship){
+		Ship vessel = (Ship)space.getObjectById(ship.getVessel());
+		Position goldmine = null;
+		if(this.goldmine == null){
+			goldmine = findGoldmine(space, ship);
+		} else {
+			return optimalApproach(space, vessel, vessel.getPosition(), this.goldmine);
+		}
+		
+		
 		// precondition - does not need fuel, not at max capacity, locations exists
-		//TODO - i dont even know
+		if(goldmine != null && ship.isGoldDigger() && !ship.needsFuel(FUEL_COEF, vessel)){
+			this.goldmine = goldmine;
+			ship.setTarget(new Beacon(goldmine)); //pseudo object for graphics
+			return optimalApproach(space, vessel, vessel.getPosition(), goldmine);	
+		}
+		this.goldmine = null; //reset gold mind to null if not found
 		return null;
-	} //end goToFrontier
+	} //end goToGoldmine
 
 
 	
@@ -361,4 +423,118 @@ public class SpaceCommand {
 			ship.setGraphics(space, (Ship)space.getObjectById(ship.getVessel()));
 		}
 	} //end updateGraphics
+	
+	/** Uses K-means clustering to find a location with high resource density **/
+	public Position findGoldmine(Toroidal2DPhysics space, ShipState vessel){
+		Random rand = new Random();
+		List<Asteroid> prospects = vessel.getMinableAsteroids(space); //maybe only consider stationary asteroids?
+		int[] ptok = new int[prospects.size()];	//links prospects to their closest centroid (k)
+		
+		
+		double minDist;
+		double dist;
+		int count;
+		Vector2D dxy;
+		boolean changed = true;
+		int MAX_ITER = 100;
+		int iter = 0;
+		Position bestest = null;
+		double mostest = Double.NEGATIVE_INFINITY;
+
+		
+		int k = 9;
+			iter = 0;
+			changed = true;
+			List<Position> K = new ArrayList<Position>(k);				//K mean positions
+			List<ArrayList<Asteroid>> clusters = new ArrayList<ArrayList<Asteroid>>(k);		//keep track of cluster assignments K index : [prospect indexes]
+
+			for (int i =0; i<k; i++){
+				K.add(space.getRandomFreeLocation(rand, 0));			
+			}
+
+			for (int i = 0; i < k; i ++){
+				clusters.add(new ArrayList<Asteroid>());
+			}
+
+			while (changed && iter < MAX_ITER){
+				iter++;
+				changed = false;			//reset change flag
+
+				for (int j = 0; j < prospects.size(); j++){
+					minDist = Double.POSITIVE_INFINITY;
+
+					for (int i = 0; i < K.size(); i++){
+						dist = space.findShortestDistance(prospects.get(j).getPosition(), K.get(i));
+
+						if (dist < minDist){
+							minDist = dist;
+							ptok[j] = i;
+						}
+					}
+				}
+				
+				for (ArrayList<Asteroid> cluster : clusters){
+					cluster.clear();
+				}
+
+				for (int i = 0; i < ptok.length; i++){
+					clusters.get(ptok[i]).add(prospects.get(i));
+				}
+
+				for (int i = 0; i < clusters.size(); i++){
+					count = clusters.get(i).size();
+
+					if (count != 0){
+						dxy = new Vector2D();
+
+						for (Asteroid j : clusters.get(i)){
+							dxy = dxy.add(space.findShortestDistanceVector(K.get(i), j.getPosition()));
+						}
+
+						dxy = dxy.divide(count);			//average displacement from centroid
+
+						//System.out.println("Average displacement: " + dxy.getMagnitude() + " @ iter: " + iter);
+
+						if (dxy.getMagnitude() > .0000001){		//if centroid is not close enough to center, recluster
+							changed = true;				
+							K.get(i).setX(K.get(i).getX() + dxy.getXValue());
+							K.get(i).setY(K.get(i).getY() + dxy.getYValue());
+						}
+					}
+				}
+			
+			//return centroid of cluster with highest resource density
+			double total = 0;
+			double most = Double.NEGATIVE_INFINITY;
+			double extent = 0;
+			double fromCenter;
+			Position best = K.get(0);		//just init
+
+			for (ArrayList<Asteroid> cluster : clusters){
+				total = 0; 
+				extent = 1;
+
+				for (Asteroid ast : cluster){
+					total+=ast.getResources().getTotal();
+					fromCenter = space.findShortestDistance(ast.getPosition(), K.get(clusters.indexOf(cluster)));
+					if (extent < fromCenter){
+						extent = fromCenter;
+					}
+				}
+
+				total/= extent;			//resource density of cluster using the farthest node (think of the area of an encompassing circle defined by extent as the radius, without the extra math)
+
+				if (total > most){
+					most = total;
+					best = K.get(clusters.indexOf(cluster));
+				}
+			}
+			if (mostest < most){
+				bestest = best;
+				mostest = total;
+			}
+		}
+
+		return bestest;
+	} //end findGoldMine
 } //end SpaceCommand class

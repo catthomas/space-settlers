@@ -26,12 +26,15 @@ public class ShipState {
 
 		/** Role of ship **/
 		boolean diamondChaser;
+		boolean goldDigger;
 		
 		/** Default constructor for the class **/ 
 		ShipState(UUID vessel){
 			this.vessel = vessel;
 			this.target = null;
 			this.graphics = null;
+			this.diamondChaser = false;
+			this.goldDigger = false;
 		} //end ShipState
 		
 		/**Getter for target **/
@@ -48,6 +51,26 @@ public class ShipState {
 		public UUID getVessel(){
 			return vessel;
 		} //end getVessel
+		
+		/** Getter for golddigger **/
+		public boolean isGoldDigger(){
+			return this.goldDigger;
+		} //end isGoldDigger
+		
+		/** Setter for golddigger **/
+		public void setGoldDigger(boolean digger){
+			this.goldDigger = digger;
+		} //end setGoldDigger
+		
+		/** Getter for diamondChaser **/
+		public boolean isDiamondChaser(){
+			return this.diamondChaser;
+		} //end isDiamondChaser
+		
+		/** Setter for diamondChaser **/
+		public void setDiamondChaser(boolean diamonds){
+			this.diamondChaser = diamonds;
+		} //end setDiamondChaser
 		
 		/** Checks to see if vessel needs to refuel **/
 		public boolean needsFuel(double fuelCap, Ship vessel){
