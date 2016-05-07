@@ -34,21 +34,21 @@ public class SpaceCommand {
 		FREE_MINE, EXPAND_EMPIRE, BUILD_FLEET
 	}
 	
-	/** Action constants **/
+	/** Action constants - obtained from our learning algorithm in previous project **/
 	private final double MAX_SPEED = 88; //speed of travel coefficient
-	private final double CARGO_CAPACITY = 500; //max amount of resources to carry
-	private final double FUEL_COEF = 1000; //min amount of fuel to seek refuel
-	private final double FRONTIER = 200;
-	private final double MIN_BASE_FUEL = 1000;
+	private final double CARGO_CAPACITY = 1500; //max amount of resources to carry
+	private final double FUEL_COEF = 45; //min amount of fuel to seek refuel
+	private final double FRONTIER = 200; //min distance between bases
+	private final double MIN_BASE_FUEL = 1000; //min amount to consider base for refuel
 	
 	
 	/** PDDL goals and high level strategy tracker */
-	private final int GOAL_BASES = 10;
-	private final int GOAL_SHIPS = 10;
-	private final int MIN_SHIPS = 5;
-	private Strategy strategy;
-	private Planner planner;
-	private Position goldmine;
+	private final int GOAL_BASES = 10; //goal number of bases
+	private final int GOAL_SHIPS = 10; //goal number of ships
+	private final int MIN_SHIPS = 5; //minimum number of ships for a fleet
+	private Strategy strategy; //current strategy in use
+	private Planner planner; //determines high level strategy to follow
+	private Position goldmine; //high resource density location
 	
 	/** Tracks the pilot states of all instantiated ships, and current roles */
 	private HashMap<UUID, ShipState> pilots;
@@ -182,7 +182,7 @@ public class SpaceCommand {
 
 	/** Checks preconditions for the free min strategy **/
 	public boolean canFreeMine(int numShips){
-		if(pilots.size() >= MIN_SHIPS) return true;
+		if(numShips >= MIN_SHIPS) return true;
 		return false;
 	} //end canFreeMine
 	
@@ -211,7 +211,7 @@ public class SpaceCommand {
 
 	/** Checks preconditions for the build fleet strategy **/
 	public boolean canBuildFleet(int numShips, int numBases){
-		if(pilots.size() < MIN_SHIPS || numShips < GOAL_SHIPS && numShips <= numBases) return true;
+		if(numShips < MIN_SHIPS || numShips < GOAL_SHIPS && numShips <= numBases) return true;
 		return false;
 	}
 	
